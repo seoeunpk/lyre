@@ -87,20 +87,20 @@ Spotify API
 | Create app in Spotify API | Set up Spotify developer app and integrate API | 17 May 2026 |
 | Prototype Creation | Build initial UI prototype | ~24 May 2026 |
 | Implement Authentication Method | Set up login / register with Firebase Auth; integrate frontend + backend | ~24 May 2026 |
-| **Milestone 1: Ideation (Readme) & Proof of concept** |  | **1 Jun 2026** |
+| **Milestone 1** | **Ideation (Readme) & Proof of concept** | **1 Jun 2026** |
 | Firestore database setup | Structure and connect Firestore to store journal entries per user; implement read and write operations | ~8 Jun 2026 |
 | Journal entry creation and management | Allow users to create, view, edit, and delete entries; each entry includes date, mood, short reflection, and an attached song or artist from Spotify | ~15 Jun 2026 |
 | Spotify API integration | Implement in-app song and artist search using Spotify API, displaying track name, artist, and album art on entries | ~22 Jun 2026 |
 | System testing | Manually test core user flows: sign up, log in, create entry, edit entry, delete entry | ~29 Jun 2026 |
-| **Milestone 2: First Working Prototype** |  | **29 Jun 2026** |
+| **Milestone 2** | **First Working Prototype**  | **29 Jun 2026** |
 | Journal history and filtering | Build a history view showing past entries chronologically; add filters by mood, date range, and keyword | ~4 Jul 2026 |
 | Insights dashboard | Display patterns such as most frequent moods, most attached songs or artists, and entry frequency over time | ~11 Jul 2026 |
 | Tagging system | Allow users to add custom tags, e.g. school, comfort, stress, to entries for richer organisation and filtering | ~18 Jul 2026 |
 | Calendar view | Show entries on a monthly calendar grid so users can see how their moods shifted across days and weeks | ~25 Jul 2026 |
 | User testing and documentation | Conduct user testing on completed features; update README with full feature descriptions, setup instructions, and design decisions | ~27 Jul 2026 |
-| **Milestone 3: Minimum Viable Product** |  | **27 Jul 2026** |
+| **Milestone 3** | **Minimum Viable Product** | **27 Jul 2026** |
 | Refinement and polish | Fix bugs from user testing, improve UI consistency, and tighten edge cases across all features | ~10 Aug 2026 |
-| **Splashdown: Refinement and Awarding** |  | **26 Aug 2026** |
+| **Splashdown** | **Refinement and Awarding** | **26 Aug 2026** |
 
 # Proof of Concept
 
