@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "995219111182",
+    "project_id": "lyre-dd377",
+    "storage_bucket": "lyre-dd377.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:995219111182:android:95ca17305da0e1ed26ab5f",
+        "android_client_info": {
+          "package_name": "com.example.lyre"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "995219111182-e1bo39vmv5277m9knl7j2tbvujittqfs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC-MZKLlA-MWHzPDXXjzdUsPnQ9gDGD6NU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "995219111182-e1bo39vmv5277m9knl7j2tbvujittqfs.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
