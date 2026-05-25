@@ -1,8 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../utils/app_colors.dart';
-import 'login_screen.dart';
+import 'history_screen.dart';
+import 'insights_screen.dart';
 import 'new_entry_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,57 +19,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final DateTime today = DateTime.now();
 
   void showProfileMenu() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              ListTile(
-                title: const Text("Change Account",
-                    style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w500)),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await AuthService().signOut();
-                  if (!mounted) return;
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                },
-              ),
-              ListTile(
-                title: const Text("Log Out",
-                    style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w500)),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await AuthService().signOut();
-                  if (!mounted) return;
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
     );
   }
 
@@ -77,18 +32,44 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Stream<Map<String, String>> _entriesStream() {
+    final uid = AuthService().currentUser?.uid;
+    if (uid == null) return Stream.value({});
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('entries')
+        .snapshots()
+        .map((snapshot) {
+      final map = <String, String>{};
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final songData = data['song'] as Map<String, dynamic>?;
+        map[doc.id] = songData?['albumArtUrl'] as String? ?? '';
+      }
+      return map;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: buildBottomBar(),
+      bottomNavigationBar: _bottomBar(),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            buildMonthHeader(),
-            buildWeekdayLabels(),
-            Expanded(child: buildCalendarGrid()),
+            _monthHeader(),
+            _weekdayLabels(),
+            Expanded(
+              child: StreamBuilder<Map<String, String>>(
+                stream: _entriesStream(),
+                builder: (context, snapshot) {
+                  return _calendarGrid(snapshot.data ?? {});
+                },
+              ),
+            ),
           ],
         ),
       ),
@@ -107,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Widget buildMonthHeader() {
+  Widget _monthHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
       child: Row(
@@ -140,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget buildWeekdayLabels() {
+  Widget _weekdayLabels() {
     const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -163,10 +144,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget buildCalendarGrid() {
+  Widget _calendarGrid(Map<String, String> entries) {
     final firstDay = DateTime(month.year, month.month, 1);
-    final daysInMonth =
-        DateTime(month.year, month.month + 1, 0).day;
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final startOffset = firstDay.weekday % 7;
     final totalCells = ((startOffset + daysInMonth) / 7).ceil() * 7;
 
@@ -181,17 +161,31 @@ class _HomeScreenState extends State<HomeScreen> {
       itemBuilder: (context, index) {
         final dayNum = index - startOffset + 1;
         if (dayNum < 1 || dayNum > daysInMonth) return const SizedBox();
-        final date =
-            DateTime(month.year, month.month, dayNum);
+        final date = DateTime(month.year, month.month, dayNum);
         final isToday = isSameDay(date, today);
-        return buildDayCell(date, dayNum, isToday);
+        final docId =
+            "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+        final albumArtUrl = entries[docId];
+        return _dayCell(date, dayNum, isToday, albumArtUrl);
       },
     );
   }
 
-  Widget buildDayCell(DateTime date, int dayNum, bool isToday) {
+  Widget _dayCell(DateTime date, int dayNum, bool isToday, String? albumArtUrl) {
+    final isFuture = date.isAfter(today);
     return GestureDetector(
-      onTap: () => openEntry(date),
+      onTap: isFuture
+          ? () => ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text("You can't write a journal for a future date.",
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  backgroundColor: AppColors.red,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  margin: const EdgeInsets.all(16),
+                ),
+              )
+          : () => openEntry(date),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -201,11 +195,14 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(6),
               color: AppColors.lightGrey,
-              border: isToday
-                  ? Border.all(color: AppColors.primary, width: 2)
+              border: isToday ? Border.all(color: AppColors.pink, width: 2.5) : null,
+              image: albumArtUrl != null && albumArtUrl.isNotEmpty
+                  ? DecorationImage(
+                      image: NetworkImage(albumArtUrl),
+                      fit: BoxFit.cover,
+                    )
                   : null,
             ),
-
           ),
           const SizedBox(height: 4),
           Text(
@@ -213,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
-              color: isToday ? AppColors.text : AppColors.grey,
+              color: isToday ? AppColors.pink : AppColors.grey,
             ),
           ),
         ],
@@ -221,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget buildBottomBar() {
+  Widget _bottomBar() {
     return BottomAppBar(
       color: AppColors.surface,
       surfaceTintColor: Colors.transparent,
@@ -234,32 +231,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppColors.primary),
           ),
           IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.bar_chart_rounded,
-                color: AppColors.grey),
-          ),
-          GestureDetector(
-            onTap: () => openEntry(today),
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Text("+",
-                    style: TextStyle(
-                        fontSize: 26,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w300)),
-              ),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const InsightsScreen()),
             ),
+            icon: const Icon(Icons.bar_chart_rounded, color: AppColors.grey),
+          ),
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const HistoryScreen()),
+            ),
+            icon: const Icon(Icons.history_rounded, color: AppColors.grey),
           ),
           IconButton(
             onPressed: showProfileMenu,
-            icon: const Icon(Icons.person_outline_rounded,
-                color: AppColors.grey),
+            icon: const Icon(Icons.person_outline_rounded, color: AppColors.grey),
           ),
         ],
       ),
