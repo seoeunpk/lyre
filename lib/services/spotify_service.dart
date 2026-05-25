@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
-// represents a song from spotify
 class SpotifyTrack {
   final String trackId;
   final String trackName;
@@ -41,11 +40,9 @@ class SpotifyService {
 
     final data = jsonDecode(response.body);
     _accessToken = data['access_token'] as String;
-    print('spotify token ok'); // debug
   }
 
   Future<List<SpotifyTrack>> searchTracks(String query) async {
-    // TODO: cache the token instead of re-authing every time
     await _authenticate();
 
     final uri = Uri.parse('https://api.spotify.com/v1/search').replace(
