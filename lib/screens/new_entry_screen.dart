@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
@@ -25,7 +24,6 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   final Set<String> tags = {};
   final List<String> myTags = [];
 
-  Timer? debounce;
   bool saving = false;
   bool loading = true;
   bool entryExists = false;
@@ -52,8 +50,6 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         .collection('entries')
         .doc(docId)
         .get();
-
-    if (!mounted) return;
 
     if (doc.exists) {
       final data = doc.data()!;
@@ -85,36 +81,25 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   void dispose() {
     noteController.dispose();
     searchCtrl.dispose();
-    debounce?.cancel();
     super.dispose();
   }
 
-  void onSpotifySearchChanged(String query) {
-    if (debounce?.isActive ?? false) debounce!.cancel();
-    debounce = Timer(const Duration(milliseconds: 500), () async {
-      if (query.trim().isEmpty) {
-        setState(() {
-          results = [];
-          searching = false;
-        });
-        return;
-      }
-      setState(() => searching = true);
-      try {
-        final found = await SpotifyService().searchTracks(query);
-        if (mounted) {
-          setState(() {
-            results = found;
-            searching = false;
-          });
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() => searching = false);
-          _showSnackBar("Search failed. Check your connection.", isError: true);
-        }
-      }
-    });
+  void onSearch(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() => results = []);
+      return;
+    }
+    setState(() => searching = true);
+    try {
+      final found = await SpotifyService().searchTracks(query);
+      setState(() {
+        results = found;
+        searching = false;
+      });
+    } catch (e) {
+      setState(() => searching = false);
+      _showSnackBar("Search failed. Check your connection.", isError: true);
+    }
   }
 
   void selectSong(SpotifyTrack track) {
@@ -219,7 +204,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
       ),
     );
 
-    if (confirm != true || !mounted) return;
+    if (confirm != true) return;
 
     final uid = AuthService().currentUser?.uid;
     await FirebaseFirestore.instance
@@ -229,7 +214,6 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         .doc("${widget.date.year}-${widget.date.month.toString().padLeft(2, '0')}-${widget.date.day.toString().padLeft(2, '0')}")
         .delete();
 
-    if (!mounted) return;
     Navigator.pop(context);
   }
 
@@ -262,16 +246,13 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
           'artistName': song!.artistName,
           'albumArtUrl': song!.albumArtUrl,
         },
-        'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      if (!mounted) return;
       Navigator.pop(context);
     } catch (e) {
-      if (!mounted) return;
       _showSnackBar(e.toString(), isError: true);
     } finally {
-      if (mounted) setState(() => saving = false);
+      setState(() => saving = false);
     }
   }
 
@@ -367,7 +348,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.text.withValues(alpha: 0.04),
+            color: AppColors.text.withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -383,9 +364,9 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
+                color: AppColors.primary.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 1.5),
+                border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1.5),
               ),
               child: Row(
                 children: [
@@ -436,7 +417,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                     Expanded(
                       child: TextField(
                         controller: searchCtrl,
-                        onChanged: onSpotifySearchChanged,
+                        onChanged: onSearch,
                         autofocus: true,
                         style: const TextStyle(fontSize: 14, color: AppColors.text),
                         decoration: InputDecoration(
@@ -483,50 +464,35 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                       border: Border.all(color: AppColors.border),
                     ),
                     child: Column(
-                      children: results.map((track) {
-                        final isFirst = track == results.first;
-                        final isLast = track == results.last;
-                        return Column(
-                          children: [
-                            if (!isFirst) const Divider(height: 1, color: AppColors.border),
-                            ListTile(
-                              dense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                              leading: Container(
-                                width: 38,
-                                height: 38,
-                                decoration: BoxDecoration(
-                                  color: AppColors.border,
-                                  borderRadius: BorderRadius.circular(8),
-                                  image: track.albumArtUrl.isNotEmpty
-                                      ? DecorationImage(
-                                          image: NetworkImage(track.albumArtUrl),
-                                          fit: BoxFit.cover)
-                                      : null,
-                                ),
-                              ),
-                              title: Text(track.trackName,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                      color: AppColors.text),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
-                              subtitle: Text(track.artistName,
-                                  style: const TextStyle(color: AppColors.grey, fontSize: 12),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
-                              onTap: () => selectSong(track),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(
-                                  top: isFirst ? const Radius.circular(14) : Radius.zero,
-                                  bottom: isLast ? const Radius.circular(14) : Radius.zero,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
+                      children: results.map((track) => ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                        leading: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: AppColors.border,
+                            borderRadius: BorderRadius.circular(8),
+                            image: track.albumArtUrl.isNotEmpty
+                                ? DecorationImage(
+                                    image: NetworkImage(track.albumArtUrl),
+                                    fit: BoxFit.cover)
+                                : null,
+                          ),
+                        ),
+                        title: Text(track.trackName,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: AppColors.text),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        subtitle: Text(track.artistName,
+                            style: const TextStyle(color: AppColors.grey, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        onTap: () => selectSong(track),
+                      )).toList(),
                     ),
                   ),
                 if (results.isEmpty && searchCtrl.text.isNotEmpty)
@@ -569,7 +535,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.text.withValues(alpha: 0.04),
+            color: AppColors.text.withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -619,7 +585,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.text.withValues(alpha: 0.04),
+            color: AppColors.text.withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
