@@ -45,9 +45,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final password = passwordController.text;
     final confirm = confirmPasswordController.text;
 
-    final validationError = _validatePassword(password);
-    if (validationError != null) {
-      setState(() => errorMessage = validationError);
+    final err = _validatePassword(password);
+    if (err != null) {
+      setState(() => errorMessage = err);
       return;
     }
 
@@ -79,7 +79,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
     );
   }
 

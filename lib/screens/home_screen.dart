@@ -18,13 +18,6 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime month = DateTime.now();
   final DateTime today = DateTime.now();
 
-  void showProfileMenu() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ProfileScreen()),
-    );
-  }
-
   void openEntry(DateTime date) {
     Navigator.push(
       context,
@@ -96,8 +89,6 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             onPressed: prevMonth,
             icon: const Icon(Icons.chevron_left_rounded, color: AppColors.grey),
-            splashColor: Colors.transparent,
-            highlightColor: Colors.transparent,
           ),
           Expanded(
             child: Text(
@@ -113,8 +104,6 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             onPressed: nextMonth,
             icon: const Icon(Icons.chevron_right_rounded, color: AppColors.grey),
-            splashColor: Colors.transparent,
-            highlightColor: Colors.transparent,
           ),
         ],
       ),
@@ -155,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
       physics: const ClampingScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 7,
-        childAspectRatio: 0.82,
+        childAspectRatio: 0.75,
       ),
       itemCount: totalCells,
       itemBuilder: (context, index) {
@@ -190,12 +179,11 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 38,
-            height: 38,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(6),
               color: AppColors.lightGrey,
-              border: isToday ? Border.all(color: AppColors.pink, width: 2.5) : null,
               image: albumArtUrl != null && albumArtUrl.isNotEmpty
                   ? DecorationImage(
                       image: NetworkImage(albumArtUrl),
@@ -210,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
-              color: isToday ? AppColors.pink : AppColors.grey,
+              color: isToday ? Colors.black : AppColors.grey,
             ),
           ),
         ],
@@ -245,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.history_rounded, color: AppColors.grey),
           ),
           IconButton(
-            onPressed: showProfileMenu,
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
             icon: const Icon(Icons.person_outline_rounded, color: AppColors.grey),
           ),
         ],
