@@ -1,7 +1,9 @@
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../models/journal_entry.dart';
+import '../models/mood.dart';
 import '../services/auth_service.dart';
+import '../services/journal_service.dart';
 import '../services/spotify_service.dart';
 import '../utils/app_colors.dart';
 
@@ -16,18 +18,32 @@ class NewEntryScreen extends StatefulWidget {
 class _NewEntryScreenState extends State<NewEntryScreen> {
   final noteController = TextEditingController();
   final searchCtrl = TextEditingController();
+  final _journal = JournalService();
 
   SpotifyTrack? song;
   List<SpotifyTrack> results = [];
   bool searching = false;
   bool showSearch = false;
 
+  String? selectedMood;
+
+  // some default tags to pick from
+  final List<String> myTags = [
+    'school', 'work', 'comfort', 'late_night', 'friends', 'family', 'love',
+  ];
   final Set<String> tags = {};
-  final List<String> myTags = [];
   bool showTags = true;
 
   Timer? debounce;
   bool saving = false;
+  bool loading = true;
+  bool entryExists = false; // true when we loaded an existing entry (edit mode)
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExisting();
+  }
 
   @override
   void dispose() {
@@ -35,6 +51,36 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
     searchCtrl.dispose();
     debounce?.cancel();
     super.dispose();
+  }
+
+  // if this day already has an entry, load it in so we can edit it
+  Future<void> _loadExisting() async {
+    final uid = AuthService().currentUser?.uid;
+    if (uid == null) {
+      setState(() => loading = false);
+      return;
+    }
+    final existing = await _journal.getEntryForDate(uid, widget.date);
+    if (!mounted) return;
+    if (existing != null) {
+      noteController.text = existing.note;
+      selectedMood = existing.mood.isEmpty ? null : existing.mood;
+      tags.addAll(existing.tags);
+      // add custom tags to the chip list too so they show up
+      for (final t in existing.tags) {
+        if (!myTags.contains(t)) myTags.add(t);
+      }
+      if (existing.song != null) {
+        song = SpotifyTrack(
+          trackId: existing.song!.trackId,
+          trackName: existing.song!.trackName,
+          artistName: existing.song!.artistName,
+          albumArtUrl: existing.song!.albumArtUrl,
+        );
+      }
+      entryExists = true;
+    }
+    setState(() => loading = false);
   }
 
   void onSpotifySearchChanged(String query) {
@@ -48,12 +94,17 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         return;
       }
       setState(() => searching = true);
-      final found = await SpotifyService().searchTracks(query);
-      if (mounted) {
-        setState(() {
-          results = found;
-          searching = false;
-        });
+      try {
+        final found = await SpotifyService().searchTracks(query);
+        if (mounted) {
+          setState(() {
+            results = found;
+            searching = false;
+          });
+        }
+      } catch (e) {
+        print('spotify search error: $e'); // debug
+        if (mounted) setState(() => searching = false);
       }
     });
   }
@@ -69,6 +120,10 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   }
 
   void removeSong() => setState(() => song = null);
+
+  void selectMood(String label) {
+    setState(() => selectedMood = selectedMood == label ? null : label);
+  }
 
   void toggleTag(String label) {
     setState(() {
@@ -138,7 +193,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
 
     if (result != null && result.isNotEmpty && mounted) {
       setState(() {
-        myTags.add(result);
+        if (!myTags.contains(result)) myTags.add(result);
         tags.add(result);
       });
     }
@@ -147,6 +202,10 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   void saveEntry() async {
     if (song == null) {
       showSnackBar("Pick today's song first", isError: true);
+      return;
+    }
+    if (selectedMood == null) {
+      showSnackBar("How are you feeling? Pick a mood", isError: true);
       return;
     }
     if (noteController.text.trim().isEmpty) {
@@ -158,40 +217,75 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
 
     try {
       final uid = AuthService().currentUser?.uid;
-      final date = widget.date;
-      final docId =
-          "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+      if (uid == null) throw Exception('not signed in');
+      print('saving...'); // debug
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('entries')
-          .doc(docId)
-          .set({
-        'date': Timestamp.fromDate(date),
-        'note': noteController.text.trim(),
-        'tags': tags.toList(),
-        'song': {
-          'trackId': song!.trackId,
-          'trackName': song!.trackName,
-          'artistName': song!.artistName,
-          'albumArtUrl': song!.albumArtUrl,
-        },
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      final entry = JournalEntry(
+        date: widget.date,
+        mood: selectedMood!,
+        note: noteController.text.trim(),
+        tags: tags.toList(),
+        song: EntrySong.fromTrack(song!),
+      );
+      await _journal.saveEntry(uid, entry);
 
       if (!mounted) return;
-      noteController.clear();
-      setState(() {
-        song = null;
-        tags.clear();
-      });
-      showSnackBar("Entry saved!");
+      showSnackBar(entryExists ? "Entry updated!" : "Entry saved!");
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       showSnackBar("Failed to save. Try again.", isError: true);
-    } finally {
-      if (mounted) setState(() => saving = false);
+      setState(() => saving = false);
+    }
+  }
+
+  void confirmDelete() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Delete entry?",
+            style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+                fontSize: 16)),
+        content: const Text(
+          "This will permanently remove this day's entry.",
+          style: TextStyle(color: AppColors.grey, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel",
+                style: TextStyle(color: AppColors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete",
+                style: TextStyle(
+                    color: AppColors.red, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+    final uid = AuthService().currentUser?.uid;
+    if (uid == null) return;
+
+    setState(() => saving = true);
+    try {
+      final docId =
+          "${widget.date.year}-${widget.date.month.toString().padLeft(2, '0')}-${widget.date.day.toString().padLeft(2, '0')}";
+      await _journal.deleteEntry(uid, docId);
+      if (!mounted) return;
+      showSnackBar("Entry deleted");
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      showSnackBar("Failed to delete. Try again.", isError: true);
+      setState(() => saving = false);
     }
   }
 
@@ -240,49 +334,132 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
             color: AppColors.text,
           ),
         ),
+        actions: [
+          if (entryExists)
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded,
+                  color: AppColors.red),
+              onPressed: saving ? null : confirmDelete,
+            ),
+        ],
       ),
-      body: Column(
+      body: loading
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
+          : Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    child: Column(
+                      children: [
+                        MusicCard(
+                          song: song,
+                          showSearch: showSearch,
+                          searchController: searchCtrl,
+                          results: results,
+                          isSearching: searching,
+                          onAddSong: () => setState(() => showSearch = true),
+                          onSearch: onSpotifySearchChanged,
+                          onSelect: selectSong,
+                          onRemove: removeSong,
+                          onCancel: () {
+                            setState(() {
+                              showSearch = false;
+                              results = [];
+                              searchCtrl.clear();
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        MoodCard(selected: selectedMood, onSelect: selectMood),
+                        const SizedBox(height: 14),
+                        NoteCard(controller: noteController),
+                        const SizedBox(height: 14),
+                        TagsCard(
+                          myTags: myTags,
+                          tags: tags,
+                          expanded: showTags,
+                          onExpand: () =>
+                              setState(() => showTags = !showTags),
+                          onTag: toggleTag,
+                          onAdd: addCustomTag,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                DoneButton(
+                  saving: saving,
+                  isEdit: entryExists,
+                  onPressed: saveEntry,
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class MoodCard extends StatelessWidget {
+  final String? selected;
+  final ValueChanged<String> onSelect;
+  const MoodCard({required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return EntryCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              child: Column(
-                children: [
-                  MusicCard(
-                    song: song,
-                    showSearch: showSearch,
-                    searchController: searchCtrl,
-                    results: results,
-                    isSearching: searching,
-                    onAddSong: () => setState(() => showSearch = true),
-                    onSearch: onSpotifySearchChanged,
-                    onSelect: selectSong,
-                    onRemove: removeSong,
-                    onCancel: () {
-                      setState(() {
-                        showSearch = false;
-                        results = [];
-                        searchCtrl.clear();
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                  NoteCard(controller: noteController),
-                  const SizedBox(height: 14),
-                  TagsCard(
-                    myTags: myTags,
-                    tags: tags,
-                    expanded: showTags,
-                    onExpand: () =>
-                        setState(() => showTags = !showTags),
-                    onTag: toggleTag,
-                    onAdd: addCustomTag,
-                  ),
-                ],
-              ),
+          const Text(
+            "How are you feeling?",
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.text,
             ),
           ),
-          DoneButton(saving: saving, onPressed: saveEntry),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: Moods.all.map((m) {
+              final isSelected = selected == m.label;
+              return GestureDetector(
+                onTap: () => onSelect(m.label),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? m.color.withValues(alpha: 0.35)
+                        : AppColors.background,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected ? m.color : AppColors.border,
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(m.emoji, style: const TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Text(
+                        m.label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.text,
+                          fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
         ],
       ),
     );
@@ -739,15 +916,19 @@ class TagChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.pink,
+          color: selected ? AppColors.darkPink : AppColors.pink,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.darkPink : Colors.transparent,
+            width: 1.5,
+          ),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 13,
             color: AppColors.text,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
           ),
         ),
       ),
@@ -809,8 +990,13 @@ class EntryCard extends StatelessWidget {
 
 class DoneButton extends StatelessWidget {
   final bool saving;
+  final bool isEdit;
   final VoidCallback onPressed;
-  const DoneButton({required this.saving, required this.onPressed});
+  const DoneButton({
+    required this.saving,
+    required this.isEdit,
+    required this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -836,9 +1022,10 @@ class DoneButton extends StatelessWidget {
                   child: CircularProgressIndicator(
                       color: Colors.white, strokeWidth: 2),
                 )
-              : const Text(
-                  "Done",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              : Text(
+                  isEdit ? "Update" : "Done",
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w700),
                 ),
         ),
       ),

@@ -18,11 +18,19 @@ class SpotifyTrack {
 }
 
 class SpotifyService {
-  String? _accessToken;
+  static String? _accessToken;
+  static DateTime? _tokenExpiry;
 
   Future<void> _authenticate() async {
+    if (_accessToken != null &&
+        _tokenExpiry != null &&
+        DateTime.now().isBefore(_tokenExpiry!)) {
+      return;
+    }
+
     final clientId = dotenv.env['SPOTIFY_CLIENT_ID'] ?? '';
     final clientSecret = dotenv.env['SPOTIFY_CLIENT_SECRET'] ?? '';
+    print('spotify auth: id=${clientId.length}chars, secret=${clientSecret.length}chars'); // debug
 
     final credentials = base64Encode(utf8.encode('$clientId:$clientSecret'));
 
@@ -41,11 +49,11 @@ class SpotifyService {
 
     final data = jsonDecode(response.body);
     _accessToken = data['access_token'] as String;
+    _tokenExpiry = DateTime.now().add(const Duration(seconds: 3500));
     print('spotify token ok'); // debug
   }
 
   Future<List<SpotifyTrack>> searchTracks(String query) async {
-    // TODO: cache the token instead of re-authing every time
     await _authenticate();
 
     final uri = Uri.parse('https://api.spotify.com/v1/search').replace(
