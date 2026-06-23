@@ -1,9 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../models/journal_entry.dart';
+import '../models/mood.dart';
 import '../services/auth_service.dart';
+import '../services/journal_service.dart';
 import '../utils/app_colors.dart';
 import 'history_screen.dart';
 import 'insights_screen.dart';
+import 'login_screen.dart';
 import 'new_entry_screen.dart';
 import 'profile_screen.dart';
 
@@ -15,8 +18,64 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final _journal = JournalService();
   DateTime month = DateTime.now();
   final DateTime today = DateTime.now();
+
+  String? get _uid => AuthService().currentUser?.uid;
+
+  void showProfileMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                title: const Text("Profile",
+                    style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w500)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  );
+                },
+              ),
+              ListTile(
+                title: const Text("Log Out",
+                    style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w500)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await AuthService().signOut();
+                  if (!mounted) return;
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   void openEntry(DateTime date) {
     Navigator.push(
@@ -25,23 +84,18 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Stream<Map<String, String>> _entriesStream() {
-    final uid = AuthService().currentUser?.uid;
-    if (uid == null) return Stream.value({});
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('entries')
-        .snapshots()
-        .map((snapshot) {
-      final map = <String, String>{};
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final songData = data['song'] as Map<String, dynamic>?;
-        map[doc.id] = songData?['albumArtUrl'] as String? ?? '';
-      }
-      return map;
-    });
+  void openHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const HistoryScreen()),
+    );
+  }
+
+  void openInsights() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const InsightsScreen()),
+    );
   }
 
   @override
@@ -50,24 +104,28 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: AppColors.background,
       bottomNavigationBar: _bottomBar(),
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _monthHeader(),
-            _weekdayLabels(),
-            Expanded(
-              child: StreamBuilder<Map<String, String>>(
-                stream: _entriesStream(),
-                builder: (context, snapshot) {
-                  return _calendarGrid(snapshot.data ?? {});
-                },
-              ),
-            ),
-          ],
+        child: StreamBuilder<List<JournalEntry>>(
+          stream: _uid == null ? null : _journal.getEntries(_uid!),
+          builder: (context, snapshot) {
+            final entryByDay = <String, JournalEntry>{};
+            for (final e in snapshot.data ?? const <JournalEntry>[]) {
+              entryByDay[_key(e.date)] = e;
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _monthHeader(),
+                _weekdayLabels(),
+                Expanded(child: buildCalendarGrid(entryByDay)),
+              ],
+            );
+          },
         ),
       ),
     );
   }
+
+  String _key(DateTime d) => "${d.year}-${d.month}-${d.day}";
 
   void prevMonth() {
     setState(() {
@@ -133,7 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _calendarGrid(Map<String, String> entries) {
+  Widget buildCalendarGrid(Map<String, JournalEntry> entryByDay) {
     final firstDay = DateTime(month.year, month.month, 1);
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final startOffset = firstDay.weekday % 7;
@@ -152,21 +210,25 @@ class _HomeScreenState extends State<HomeScreen> {
         if (dayNum < 1 || dayNum > daysInMonth) return const SizedBox();
         final date = DateTime(month.year, month.month, dayNum);
         final isToday = isSameDay(date, today);
-        final docId =
-            "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-        final albumArtUrl = entries[docId];
-        return _dayCell(date, dayNum, isToday, albumArtUrl);
+        final entry = entryByDay[_key(date)];
+        return buildDayCell(date, dayNum, isToday, entry);
       },
     );
   }
 
-  Widget _dayCell(DateTime date, int dayNum, bool isToday, String? albumArtUrl) {
+  Widget buildDayCell(DateTime date, int dayNum, bool isToday, JournalEntry? entry) {
     final isFuture = date.isAfter(today);
+    final moodData = Moods.byLabel(entry?.mood);
+    final moodColor = moodData?.color;
+    final albumArt = entry?.song?.albumArtUrl;
+    final hasArt = albumArt != null && albumArt.isNotEmpty;
+    final glowColor = moodColor ?? (isToday ? AppColors.primary : null);
+
     return GestureDetector(
       onTap: isFuture
           ? () => ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text("You can't write a journal for a future date.",
+                  content: const Text("Can't add an entry for a future date.",
                       style: TextStyle(fontWeight: FontWeight.w600)),
                   backgroundColor: AppColors.red,
                   behavior: SnackBarBehavior.floating,
@@ -179,18 +241,31 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
-              color: AppColors.lightGrey,
-              image: albumArtUrl != null && albumArtUrl.isNotEmpty
+              borderRadius: BorderRadius.circular(8),
+              color: hasArt
+                  ? null
+                  : (moodColor?.withValues(alpha: 0.35) ?? AppColors.lightGrey),
+              image: hasArt
                   ? DecorationImage(
-                      image: NetworkImage(albumArtUrl),
-                      fit: BoxFit.cover,
-                    )
+                      image: NetworkImage(albumArt), fit: BoxFit.cover)
+                  : null,
+              boxShadow: glowColor != null
+                  ? [
+                      BoxShadow(
+                        color: glowColor.withValues(alpha: 0.55),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ]
                   : null,
             ),
+            child: (!hasArt && moodData != null)
+                ? Text(moodData.emoji, style: const TextStyle(fontSize: 16))
+                : null,
           ),
           const SizedBox(height: 4),
           Text(
@@ -219,21 +294,33 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppColors.primary),
           ),
           IconButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const InsightsScreen()),
+            onPressed: openHistory,
+            icon: const Icon(Icons.menu_book_rounded, color: AppColors.grey),
+          ),
+          GestureDetector(
+            onTap: () => openEntry(today),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: AppColors.primary,
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Text("+",
+                    style: TextStyle(
+                        fontSize: 26,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w300)),
+              ),
             ),
+          ),
+          IconButton(
+            onPressed: openInsights,
             icon: const Icon(Icons.bar_chart_rounded, color: AppColors.grey),
           ),
           IconButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const HistoryScreen()),
-            ),
-            icon: const Icon(Icons.history_rounded, color: AppColors.grey),
-          ),
-          IconButton(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
+            onPressed: showProfileMenu,
             icon: const Icon(Icons.person_outline_rounded, color: AppColors.grey),
           ),
         ],

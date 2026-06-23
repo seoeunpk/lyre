@@ -1,6 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../models/journal_entry.dart';
+import '../models/mood.dart';
 import '../services/auth_service.dart';
+import '../services/journal_service.dart';
 import '../services/spotify_service.dart';
 import '../utils/app_colors.dart';
 
@@ -15,91 +18,92 @@ class NewEntryScreen extends StatefulWidget {
 class _NewEntryScreenState extends State<NewEntryScreen> {
   final noteController = TextEditingController();
   final searchCtrl = TextEditingController();
+  final _journal = JournalService();
 
   SpotifyTrack? song;
   List<SpotifyTrack> results = [];
   bool searching = false;
   bool showSearch = false;
 
+  String? selectedMood;
+
+  final List<String> myTags = [
+    'school', 'work', 'comfort', 'late_night', 'friends', 'family', 'love',
+  ];
   final Set<String> tags = {};
-  final List<String> myTags = [];
+  bool showTags = true;
 
   bool saving = false;
   bool loading = true;
   bool entryExists = false;
 
+  Timer? debounce;
+
   @override
   void initState() {
     super.initState();
-    _loadEntry();
+    _loadExisting();
   }
 
-  Future<void> _loadEntry() async {
+  Future<void> _loadExisting() async {
     final uid = AuthService().currentUser?.uid;
     if (uid == null) {
       setState(() => loading = false);
       return;
     }
-
-    final date = widget.date;
-    final docId = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('entries')
-        .doc(docId)
-        .get();
-
-    if (doc.exists) {
-      final data = doc.data()!;
-      final songData = data['song'] as Map<String, dynamic>?;
-      final savedTags = List<String>.from(data['tags'] ?? []);
-
-      setState(() {
-        noteController.text = data['note'] ?? '';
-        tags.addAll(savedTags);
-        myTags.addAll(savedTags);
-        if (songData != null) {
-          song = SpotifyTrack(
-            trackId: songData['trackId'] ?? '',
-            trackName: songData['trackName'] ?? '',
-            artistName: songData['artistName'] ?? '',
-            albumArtUrl: songData['albumArtUrl'] ?? '',
-          );
-        }
-        entryExists = true;
-        loading = false;
-      });
-    } else {
-      setState(() => loading = false);
+    final existing = await _journal.getEntryForDate(uid, widget.date);
+    if (!mounted) return;
+    if (existing != null) {
+      noteController.text = existing.note;
+      selectedMood = existing.mood.isEmpty ? null : existing.mood;
+      tags.addAll(existing.tags);
+      for (final t in existing.tags) {
+        if (!myTags.contains(t)) myTags.add(t);
+      }
+      if (existing.song != null) {
+        song = SpotifyTrack(
+          trackId: existing.song!.trackId,
+          trackName: existing.song!.trackName,
+          artistName: existing.song!.artistName,
+          albumArtUrl: existing.song!.albumArtUrl,
+        );
+      }
+      entryExists = true;
     }
+    setState(() => loading = false);
   }
-
 
   @override
   void dispose() {
+    debounce?.cancel();
     noteController.dispose();
     searchCtrl.dispose();
     super.dispose();
   }
 
-  void onSearch(String query) async {
-    if (query.trim().isEmpty) {
-      setState(() => results = []);
-      return;
-    }
-    setState(() => searching = true);
-    try {
-      final found = await SpotifyService().searchTracks(query);
-      setState(() {
-        results = found;
-        searching = false;
-      });
-    } catch (e) {
-      setState(() => searching = false);
-      _showSnackBar("Search failed. Check your connection.", isError: true);
-    }
+  void onSpotifySearchChanged(String query) {
+    if (debounce?.isActive ?? false) debounce!.cancel();
+    debounce = Timer(const Duration(milliseconds: 500), () async {
+      if (query.trim().isEmpty) {
+        setState(() {
+          results = [];
+          searching = false;
+        });
+        return;
+      }
+      setState(() => searching = true);
+      try {
+        final found = await SpotifyService().searchTracks(query);
+        if (mounted) {
+          setState(() {
+            results = found;
+            searching = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) setState(() => searching = false);
+      }
+    });
   }
 
   void selectSong(SpotifyTrack track) {
@@ -110,6 +114,12 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
       searchCtrl.clear();
     });
     FocusScope.of(context).unfocus();
+  }
+
+  void removeSong() => setState(() => song = null);
+
+  void selectMood(String label) {
+    setState(() => selectedMood = selectedMood == label ? null : label);
   }
 
   void toggleTag(String label) {
@@ -174,22 +184,27 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
 
     if (result != null && result.isNotEmpty && mounted) {
       setState(() {
-        myTags.add(result);
+        if (!myTags.contains(result)) myTags.add(result);
         tags.add(result);
       });
     }
   }
 
-  void deleteEntry() async {
-    final confirm = await showDialog<bool>(
+  void confirmDelete() async {
+    final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text("Delete entry?",
-            style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.text, fontSize: 16)),
-        content: const Text("This can't be undone.",
-            style: TextStyle(color: AppColors.grey, fontSize: 14)),
+            style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+                fontSize: 16)),
+        content: const Text(
+          "This can't be undone.",
+          style: TextStyle(color: AppColors.grey, fontSize: 14),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -204,22 +219,33 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
       ),
     );
 
-    if (confirm != true) return;
-
+    if (ok != true) return;
     final uid = AuthService().currentUser?.uid;
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('entries')
-        .doc("${widget.date.year}-${widget.date.month.toString().padLeft(2, '0')}-${widget.date.day.toString().padLeft(2, '0')}")
-        .delete();
+    if (uid == null) return;
 
-    Navigator.pop(context);
+    setState(() => saving = true);
+    try {
+      final docId =
+          "${widget.date.year}-${widget.date.month.toString().padLeft(2, '0')}-${widget.date.day.toString().padLeft(2, '0')}";
+      await _journal.deleteEntry(uid, docId);
+      if (!mounted) return;
+      _showSnackBar("Entry deleted");
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar("Failed to delete. Try again.", isError: true);
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
   }
 
   void saveEntry() async {
     if (song == null) {
       _showSnackBar("Pick today's song first", isError: true);
+      return;
+    }
+    if (selectedMood == null) {
+      _showSnackBar("How are you feeling? Pick a mood", isError: true);
       return;
     }
     if (noteController.text.trim().isEmpty) {
@@ -231,27 +257,23 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
 
     try {
       final uid = AuthService().currentUser?.uid;
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('entries')
-          .doc("${widget.date.year}-${widget.date.month.toString().padLeft(2, '0')}-${widget.date.day.toString().padLeft(2, '0')}")
-          .set({
-        'date': Timestamp.fromDate(widget.date),
-        'note': noteController.text.trim(),
-        'tags': tags.toList(),
-        'song': {
-          'trackId': song!.trackId,
-          'trackName': song!.trackName,
-          'artistName': song!.artistName,
-          'albumArtUrl': song!.albumArtUrl,
-        },
-      });
+      if (uid == null) throw Exception('not signed in');
 
-      Navigator.pop(context);
+      final entry = JournalEntry(
+        date: widget.date,
+        mood: selectedMood!,
+        note: noteController.text.trim(),
+        tags: tags.toList(),
+        song: EntrySong.fromTrack(song!),
+      );
+      await _journal.saveEntry(uid, entry);
+
+      if (!mounted) return;
+      _showSnackBar(entryExists ? "Entry updated!" : "Entry saved!");
+      Navigator.pop(context, true);
     } catch (e) {
-      _showSnackBar(e.toString(), isError: true);
-    } finally {
+      if (!mounted) return;
+      _showSnackBar("Failed to save. Try again.", isError: true);
       setState(() => saving = false);
     }
   }
@@ -293,13 +315,14 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         actions: [
           if (entryExists)
             IconButton(
-              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.grey, size: 22),
-              onPressed: deleteEntry,
+              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.red),
+              onPressed: saving ? null : confirmDelete,
             ),
         ],
       ),
       body: loading
-          ? const SizedBox()
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
           : Column(
               children: [
                 Expanded(
@@ -309,30 +332,26 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                       children: [
                         _musicSection(),
                         const SizedBox(height: 14),
+                        MoodCard(selected: selectedMood, onSelect: selectMood),
+                        const SizedBox(height: 14),
                         _noteSection(),
                         const SizedBox(height: 14),
-                        _tagsSection(),
+                        TagsCard(
+                          myTags: myTags,
+                          tags: tags,
+                          expanded: showTags,
+                          onExpand: () => setState(() => showTags = !showTags),
+                          onTag: toggleTag,
+                          onAdd: addCustomTag,
+                        ),
                       ],
                     ),
                   ),
                 ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: saving ? null : saveEntry,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 17),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                        elevation: 0,
-                      ),
-                      child: const Text("Done",
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                    ),
-                  ),
+                DoneButton(
+                  saving: saving,
+                  isEdit: entryExists,
+                  onPressed: saveEntry,
                 ),
               ],
             ),
@@ -340,20 +359,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   }
 
   Widget _musicSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.text.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return EntryCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -402,7 +408,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, color: AppColors.grey, size: 18),
-                    onPressed: () => setState(() => song = null),
+                    onPressed: removeSong,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -417,7 +423,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                     Expanded(
                       child: TextField(
                         controller: searchCtrl,
-                        onChanged: onSearch,
+                        onChanged: onSpotifySearchChanged,
                         autofocus: true,
                         style: const TextStyle(fontSize: 14, color: AppColors.text),
                         decoration: InputDecoration(
@@ -455,7 +461,13 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                     ),
                   ],
                 ),
-                if (results.isNotEmpty)
+                if (searching)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: CircularProgressIndicator(
+                        color: AppColors.primary, strokeWidth: 2),
+                  )
+                else if (results.isNotEmpty)
                   Container(
                     margin: const EdgeInsets.only(top: 8),
                     decoration: BoxDecoration(
@@ -494,8 +506,8 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                         onTap: () => selectSong(track),
                       )).toList(),
                     ),
-                  ),
-                if (results.isEmpty && searchCtrl.text.isNotEmpty)
+                  )
+                else if (searchCtrl.text.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Text('No songs found for "${searchCtrl.text}"',
@@ -527,20 +539,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   }
 
   Widget _noteSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.text.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return EntryCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -575,8 +574,212 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
       ),
     );
   }
+}
 
-  Widget _tagsSection() {
+class MoodCard extends StatelessWidget {
+  final String? selected;
+  final ValueChanged<String> onSelect;
+  const MoodCard({super.key, required this.selected, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return EntryCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "How are you feeling?",
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: Moods.all.map((m) {
+              final isSelected = selected == m.label;
+              return GestureDetector(
+                onTap: () => onSelect(m.label),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? m.color.withValues(alpha: 0.35)
+                        : AppColors.background,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected ? m.color : AppColors.border,
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(m.emoji, style: const TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Text(
+                        m.label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.text,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TagsCard extends StatelessWidget {
+  final List<String> myTags;
+  final Set<String> tags;
+  final bool expanded;
+  final VoidCallback onExpand;
+  final ValueChanged<String> onTag;
+  final VoidCallback onAdd;
+
+  const TagsCard({
+    super.key,
+    required this.myTags,
+    required this.tags,
+    required this.expanded,
+    required this.onExpand,
+    required this.onTag,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return EntryCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: onExpand,
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              children: [
+                const Text(
+                  "Tags",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  expanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.grey,
+                ),
+              ],
+            ),
+          ),
+          if (expanded) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ...myTags.map((label) => TagChip(
+                      label: label,
+                      selected: tags.contains(label),
+                      onTap: () => onTag(label),
+                    )),
+                AddTagChip(onTap: onAdd),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class TagChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const TagChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.darkPink : AppColors.pink,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.darkPink : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            color: AppColors.text,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class AddTagChip extends StatelessWidget {
+  final VoidCallback onTap;
+  const AddTagChip({super.key, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.lightGrey,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Text(
+          "+ add",
+          style: TextStyle(
+            fontSize: 13,
+            color: AppColors.grey,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class EntryCard extends StatelessWidget {
+  final Widget child;
+  const EntryCard({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -591,45 +794,52 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("Tags",
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.text)),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ...myTags.map((label) => GestureDetector(
-                    onTap: () => toggleTag(label),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.pink,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(label,
-                          style: const TextStyle(
-                              fontSize: 13, color: AppColors.text, fontWeight: FontWeight.w400)),
-                    ),
-                  )),
-              GestureDetector(
-                onTap: addCustomTag,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.lightGrey,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text("+ add",
-                      style: TextStyle(
-                          fontSize: 13, color: AppColors.grey, fontWeight: FontWeight.w400)),
-                ),
-              ),
-            ],
+      child: child,
+    );
+  }
+}
+
+class DoneButton extends StatelessWidget {
+  final bool saving;
+  final bool isEdit;
+  final VoidCallback onPressed;
+  const DoneButton({
+    super.key,
+    required this.saving,
+    required this.isEdit,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: saving ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 17),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(22)),
+            elevation: 0,
           ),
-        ],
+          child: saving
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2),
+                )
+              : Text(
+                  isEdit ? "Update" : "Done",
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+        ),
       ),
     );
   }
