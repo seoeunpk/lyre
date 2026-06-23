@@ -28,15 +28,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   String? _validatePassword(String password) {
-    if (password.length <= 6) return "Password must be more than 6 characters.";
+    if (password.length <= 6) return "Password must be over 6 characters.";
     if (!RegExp(r'^[a-zA-Z0-9]+$').hasMatch(password)) {
-      return "Password can only contain English letters and numbers.";
+      return "Letters and numbers only.";
     }
     if (!RegExp(r'[a-zA-Z]').hasMatch(password)) {
-      return "Password must include at least one letter.";
+      return "Needs at least one letter.";
     }
     if (!RegExp(r'[0-9]').hasMatch(password)) {
-      return "Password must include at least one number.";
+      return "Needs at least one number.";
     }
     return null;
   }
@@ -52,7 +52,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     if (password != confirm) {
-      setState(() => errorMessage = "Passwords do not match.");
+      setState(() => errorMessage = "Passwords don't match.");
       return;
     }
 

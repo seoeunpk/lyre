@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 
-// a mood option you can pick for an entry
 class Mood {
-  final String label; // stored in firestore
+  final String label;
   final String emoji;
   final Color color;
 
@@ -15,7 +14,6 @@ class Mood {
 }
 
 class Moods {
-  // all the moods
   static const List<Mood> all = [
     Mood(label: 'Happy', emoji: '😊', color: Color(0xFFF6C744)),
     Mood(label: 'Calm', emoji: '😌', color: AppColors.mint),
@@ -27,7 +25,6 @@ class Moods {
     Mood(label: 'Tired', emoji: '😴', color: Color(0xFFA9B0B8)),
   ];
 
-  // find a mood by its name, returns null if its not found
   static Mood? byLabel(String? label) {
     if (label == null || label.isEmpty) return null;
     for (final m in all) {

@@ -29,7 +29,6 @@ class SpotifyService {
 
     final clientId = dotenv.env['SPOTIFY_CLIENT_ID'] ?? '';
     final clientSecret = dotenv.env['SPOTIFY_CLIENT_SECRET'] ?? '';
-    print('spotify auth: id=${clientId.length}chars, secret=${clientSecret.length}chars'); // debug
 
     final credentials = base64Encode(utf8.encode('$clientId:$clientSecret'));
 
@@ -75,19 +74,13 @@ class SpotifyService {
     final items = data['tracks']['items'] as List<dynamic>;
 
     return items.map((item) {
-      final json = item as Map<String, dynamic>;
-      final album = json['album'] as Map<String, dynamic>?;
-      final images = (album?['images'] as List<dynamic>?) ?? [];
-      final imageUrl = images.isNotEmpty ? images[0]['url'] as String : '';
-
-      final artists = json['artists'] as List<dynamic>;
-      final artistName = artists.isNotEmpty ? artists[0]['name'] as String : '';
-
+      final images = (item['album']?['images'] as List?) ?? [];
+      final artists = item['artists'] as List;
       return SpotifyTrack(
-        trackId: json['id'] as String,
-        trackName: json['name'] as String,
-        artistName: artistName,
-        albumArtUrl: imageUrl,
+        trackId: item['id'] as String,
+        trackName: item['name'] as String,
+        artistName: artists.isNotEmpty ? artists[0]['name'] as String : '',
+        albumArtUrl: images.isNotEmpty ? images[0]['url'] as String : '',
       );
     }).toList();
   }

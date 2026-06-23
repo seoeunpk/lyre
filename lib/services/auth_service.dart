@@ -10,9 +10,9 @@ class AuthService {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
       return null;
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'invalid-email') return 'Please enter a valid email address.';
+      if (e.code == 'invalid-email') return 'Invalid email address.';
       if (e.code == 'user-disabled') return 'This account has been disabled.';
-      if (e.code == 'too-many-requests') return 'Too many attempts. Please try again later.';
+      if (e.code == 'too-many-requests') return 'Too many attempts. Try again later.';
       return 'Incorrect email or password.';
     }
   }
@@ -24,9 +24,9 @@ class AuthService {
       return null;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') return 'An account with that email already exists.';
-      if (e.code == 'invalid-email') return 'Please enter a valid email address.';
+      if (e.code == 'invalid-email') return 'Invalid email address.';
       if (e.code == 'weak-password') return 'Password must be at least 6 characters.';
-      return 'Sign up failed. Please try again.';
+      return 'Sign up failed. Try again.';
     }
   }
 
@@ -40,9 +40,9 @@ class AuthService {
       return null;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'requires-recent-login') {
-        return 'Please log out and log back in before deleting your account.';
+        return 'Log out and back in, then try again.';
       }
-      return 'Failed to delete account. Please try again.';
+      return 'Could not delete account. Try again.';
     }
   }
 }

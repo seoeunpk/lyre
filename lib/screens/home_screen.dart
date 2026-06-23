@@ -228,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
       onTap: isFuture
           ? () => ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text("You can't write a journal for a future date.",
+                  content: const Text("Can't add an entry for a future date.",
                       style: TextStyle(fontWeight: FontWeight.w600)),
                   backgroundColor: AppColors.red,
                   behavior: SnackBarBehavior.floating,

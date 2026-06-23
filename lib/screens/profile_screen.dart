@@ -100,7 +100,7 @@ class ProfileScreen extends StatelessWidget {
         title: const Text("Delete account?",
             style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.text, fontSize: 16)),
         content: const Text(
-          "Your account will be permanently deleted. This can't be undone.",
+          "This can't be undone.",
           style: TextStyle(color: AppColors.grey, fontSize: 14),
         ),
         actions: [

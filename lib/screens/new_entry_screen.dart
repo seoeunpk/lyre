@@ -202,7 +202,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                 color: AppColors.text,
                 fontSize: 16)),
         content: const Text(
-          "This will permanently remove this day's entry.",
+          "This can't be undone.",
           style: TextStyle(color: AppColors.grey, fontSize: 14),
         ),
         actions: [

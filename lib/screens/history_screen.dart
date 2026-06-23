@@ -36,11 +36,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (_tagFilter != null && !e.tags.contains(_tagFilter)) continue;
       if (_keyword.isNotEmpty) {
         final k = _keyword.toLowerCase();
-        final inNote = e.note.toLowerCase().contains(k);
-        final inSong = (e.song?.trackName ?? '').toLowerCase().contains(k) ||
-            (e.song?.artistName ?? '').toLowerCase().contains(k);
-        final inTags = e.tags.join(' ').toLowerCase().contains(k);
-        if (!inNote && !inSong && !inTags) continue;
+        final hit = e.note.toLowerCase().contains(k) ||
+            (e.song?.trackName ?? '').toLowerCase().contains(k) ||
+            (e.song?.artistName ?? '').toLowerCase().contains(k) ||
+            e.tags.join(' ').toLowerCase().contains(k);
+        if (!hit) continue;
       }
       result.add(e);
     }
@@ -77,10 +77,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 child: CircularProgressIndicator(color: AppColors.primary));
           }
           final all = snapshot.data ?? const <JournalEntry>[];
-          final allTags = <String>{};
-          for (final e in all) {
-            allTags.addAll(e.tags);
-          }
+          final allTags = all.expand((e) => e.tags).toSet();
           final filtered = _applyFilters(all);
 
           return Column(
@@ -91,7 +88,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               const SizedBox(height: 4),
               Expanded(
                 child: all.isEmpty
-                    ? buildEmpty("No entries yet.\nStart journaling to see them here.")
+                    ? buildEmpty("No entries yet.")
                     : filtered.isEmpty
                         ? buildEmpty("No entries match your filters.")
                         : ListView.builder(

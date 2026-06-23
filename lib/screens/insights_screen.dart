@@ -46,7 +46,7 @@ class InsightsScreen extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.all(32),
                 child: Text(
-                  "No data yet.\nWrite a few entries to discover your patterns.",
+                  "No entries yet.\nAdd a few to start seeing patterns.",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       color: AppColors.grey, fontSize: 14, height: 1.5),
@@ -180,15 +180,7 @@ class _InsightsBody extends StatelessWidget {
 
   static String? _topKey(Map<String, int> counts) {
     if (counts.isEmpty) return null;
-    String? best;
-    int bestCount = -1;
-    counts.forEach((k, v) {
-      if (v > bestCount) {
-        bestCount = v;
-        best = k;
-      }
-    });
-    return best;
+    return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
   }
 
   static int _currentStreak(List<JournalEntry> entries) {
@@ -198,14 +190,9 @@ class _InsightsBody extends StatelessWidget {
     }
     int streak = 0;
     var day = DateTime.now();
-    while (true) {
-      final key = "${day.year}-${day.month}-${day.day}";
-      if (days.contains(key)) {
-        streak++;
-        day = day.subtract(const Duration(days: 1));
-      } else {
-        break;
-      }
+    while (days.contains("${day.year}-${day.month}-${day.day}")) {
+      streak++;
+      day = day.subtract(const Duration(days: 1));
     }
     return streak;
   }

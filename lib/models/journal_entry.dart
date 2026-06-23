@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/spotify_service.dart';
 
-// the song saved with an entry
 class EntrySong {
   final String trackId;
   final String trackName;
@@ -52,7 +51,6 @@ class JournalEntry {
     this.song,
   });
 
-  // one entry per day, id is the date like 2026-06-22
   String get docId =>
       "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 
