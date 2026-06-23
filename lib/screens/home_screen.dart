@@ -8,6 +8,7 @@ import 'history_screen.dart';
 import 'insights_screen.dart';
 import 'login_screen.dart';
 import 'new_entry_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -46,15 +47,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               ListTile(
-                title: const Text("Change Account",
+                title: const Text("Profile",
                     style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w500)),
-                onTap: () async {
+                onTap: () {
                   Navigator.pop(context);
-                  await AuthService().signOut();
-                  if (!mounted) return;
-                  Navigator.pushReplacement(
+                  Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
                   );
                 },
               ),
@@ -103,12 +102,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: buildBottomBar(),
+      bottomNavigationBar: _bottomBar(),
       body: SafeArea(
         child: StreamBuilder<List<JournalEntry>>(
           stream: _uid == null ? null : _journal.getEntries(_uid!),
           builder: (context, snapshot) {
-            // map each day to its entry so cells can show the album + mood
             final entryByDay = <String, JournalEntry>{};
             for (final e in snapshot.data ?? const <JournalEntry>[]) {
               entryByDay[_key(e.date)] = e;
@@ -116,8 +114,8 @@ class _HomeScreenState extends State<HomeScreen> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                buildMonthHeader(),
-                buildWeekdayLabels(),
+                _monthHeader(),
+                _weekdayLabels(),
                 Expanded(child: buildCalendarGrid(entryByDay)),
               ],
             );
@@ -141,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Widget buildMonthHeader() {
+  Widget _monthHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
       child: Row(
@@ -149,8 +147,6 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             onPressed: prevMonth,
             icon: const Icon(Icons.chevron_left_rounded, color: AppColors.grey),
-            splashColor: Colors.transparent,
-            highlightColor: Colors.transparent,
           ),
           Expanded(
             child: Text(
@@ -166,15 +162,13 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             onPressed: nextMonth,
             icon: const Icon(Icons.chevron_right_rounded, color: AppColors.grey),
-            splashColor: Colors.transparent,
-            highlightColor: Colors.transparent,
           ),
         ],
       ),
     );
   }
 
-  Widget buildWeekdayLabels() {
+  Widget _weekdayLabels() {
     const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -199,8 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget buildCalendarGrid(Map<String, JournalEntry> entryByDay) {
     final firstDay = DateTime(month.year, month.month, 1);
-    final daysInMonth =
-        DateTime(month.year, month.month + 1, 0).day;
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final startOffset = firstDay.weekday % 7;
     final totalCells = ((startOffset + daysInMonth) / 7).ceil() * 7;
 
@@ -209,14 +202,13 @@ class _HomeScreenState extends State<HomeScreen> {
       physics: const ClampingScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 7,
-        childAspectRatio: 0.82,
+        childAspectRatio: 0.75,
       ),
       itemCount: totalCells,
       itemBuilder: (context, index) {
         final dayNum = index - startOffset + 1;
         if (dayNum < 1 || dayNum > daysInMonth) return const SizedBox();
-        final date =
-            DateTime(month.year, month.month, dayNum);
+        final date = DateTime(month.year, month.month, dayNum);
         final isToday = isSameDay(date, today);
         final entry = entryByDay[_key(date)];
         return buildDayCell(date, dayNum, isToday, entry);
@@ -225,16 +217,26 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget buildDayCell(DateTime date, int dayNum, bool isToday, JournalEntry? entry) {
+    final isFuture = date.isAfter(today);
     final moodData = Moods.byLabel(entry?.mood);
     final moodColor = moodData?.color;
     final albumArt = entry?.song?.albumArtUrl;
     final hasArt = albumArt != null && albumArt.isNotEmpty;
-
-    // mood drives a soft glow around the cell; today falls back to a primary glow
     final glowColor = moodColor ?? (isToday ? AppColors.primary : null);
 
     return GestureDetector(
-      onTap: () => openEntry(date),
+      onTap: isFuture
+          ? () => ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text("You can't write a journal for a future date.",
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  backgroundColor: AppColors.red,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  margin: const EdgeInsets.all(16),
+                ),
+              )
+          : () => openEntry(date),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -261,7 +263,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ]
                   : null,
             ),
-            // no album art but there's a mood: show the emoji as a fallback
             child: (!hasArt && moodData != null)
                 ? Text(moodData.emoji, style: const TextStyle(fontSize: 16))
                 : null,
@@ -272,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
-              color: isToday ? AppColors.text : AppColors.grey,
+              color: isToday ? Colors.black : AppColors.grey,
             ),
           ),
         ],
@@ -280,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget buildBottomBar() {
+  Widget _bottomBar() {
     return BottomAppBar(
       color: AppColors.surface,
       surfaceTintColor: Colors.transparent,
@@ -294,8 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             onPressed: openHistory,
-            icon: const Icon(Icons.menu_book_rounded,
-                color: AppColors.grey),
+            icon: const Icon(Icons.menu_book_rounded, color: AppColors.grey),
           ),
           GestureDetector(
             onTap: () => openEntry(today),
@@ -317,13 +317,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             onPressed: openInsights,
-            icon: const Icon(Icons.bar_chart_rounded,
-                color: AppColors.grey),
+            icon: const Icon(Icons.bar_chart_rounded, color: AppColors.grey),
           ),
           IconButton(
             onPressed: showProfileMenu,
-            icon: const Icon(Icons.person_outline_rounded,
-                color: AppColors.grey),
+            icon: const Icon(Icons.person_outline_rounded, color: AppColors.grey),
           ),
         ],
       ),

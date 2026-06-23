@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
-// represents a song from spotify
 class SpotifyTrack {
   final String trackId;
   final String trackName;
@@ -50,7 +49,6 @@ class SpotifyService {
     final data = jsonDecode(response.body);
     _accessToken = data['access_token'] as String;
     _tokenExpiry = DateTime.now().add(const Duration(seconds: 3500));
-    print('spotify token ok'); // debug
   }
 
   Future<List<SpotifyTrack>> searchTracks(String query) async {

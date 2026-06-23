@@ -17,15 +17,17 @@ class InsightsScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         elevation: 0,
+        backgroundColor: AppColors.background,
         leading: IconButton(
           icon: const Icon(Icons.chevron_left_rounded,
               color: AppColors.text, size: 26),
           onPressed: () => Navigator.pop(context),
         ),
+        centerTitle: true,
         title: const Text(
           "Insights",
           style: TextStyle(
-            fontSize: 17,
+            fontSize: 15,
             fontWeight: FontWeight.w700,
             color: AppColors.text,
           ),
@@ -65,7 +67,6 @@ class _InsightsBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // count everything up
     final moodCounts = <String, int>{};
     final artistCounts = <String, int>{};
     final songCounts = <String, int>{};
@@ -98,18 +99,11 @@ class _InsightsBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // the 3 boxes at the top
           Row(
             children: [
-              _StatTile(
-                value: "${entries.length}",
-                label: "Entries",
-              ),
+              _StatTile(value: "${entries.length}", label: "Entries"),
               const SizedBox(width: 12),
-              _StatTile(
-                value: "$streak",
-                label: "Day streak",
-              ),
+              _StatTile(value: "$streak", label: "Day streak"),
               const SizedBox(width: 12),
               _StatTile(
                 value: topMood != null
@@ -197,7 +191,6 @@ class _InsightsBody extends StatelessWidget {
     return best;
   }
 
-  // how many days in a row have an entry, counting back from today
   static int _currentStreak(List<JournalEntry> entries) {
     final days = <String>{};
     for (final e in entries) {
@@ -314,8 +307,7 @@ class _BarRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(
-                      fontSize: 13, color: AppColors.text),
+                  style: const TextStyle(fontSize: 13, color: AppColors.text),
                 ),
               ),
               Text(

@@ -18,8 +18,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final _searchCtrl = TextEditingController();
 
   String _keyword = '';
-  String? _moodFilter; // null = all moods
-  String? _tagFilter; // null = all tags
+  String? _moodFilter;
+  String? _tagFilter;
 
   String? get _uid => AuthService().currentUser?.uid;
 
@@ -29,15 +29,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.dispose();
   }
 
-  // filter the entries by the mood, tag and search box
   List<JournalEntry> _applyFilters(List<JournalEntry> all) {
     final result = <JournalEntry>[];
     for (final e in all) {
-      // mood filter
       if (_moodFilter != null && e.mood != _moodFilter) continue;
-      // tag filter
       if (_tagFilter != null && !e.tags.contains(_tagFilter)) continue;
-      // search box - check the note, song and tags
       if (_keyword.isNotEmpty) {
         final k = _keyword.toLowerCase();
         final inNote = e.note.toLowerCase().contains(k);
@@ -57,15 +53,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         elevation: 0,
+        backgroundColor: AppColors.background,
         leading: IconButton(
           icon: const Icon(Icons.chevron_left_rounded,
               color: AppColors.text, size: 26),
           onPressed: () => Navigator.pop(context),
         ),
+        centerTitle: true,
         title: const Text(
-          "Journal History",
+          "History",
           style: TextStyle(
-            fontSize: 17,
+            fontSize: 15,
             fontWeight: FontWeight.w700,
             color: AppColors.text,
           ),
@@ -79,7 +77,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 child: CircularProgressIndicator(color: AppColors.primary));
           }
           final all = snapshot.data ?? const <JournalEntry>[];
-          // get all the tags that have been used
           final allTags = <String>{};
           for (final e in all) {
             allTags.addAll(e.tags);

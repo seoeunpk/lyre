@@ -14,6 +14,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  bool loading = false;
+  String? errorMessage;
 
   @override
   void dispose() {
@@ -23,15 +25,29 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void login() async {
-    await AuthService().signIn(
+    setState(() {
+      loading = true;
+      errorMessage = null;
+    });
+
+    final error = await AuthService().signIn(
       emailController.text.trim(),
       passwordController.text,
     );
 
     if (!mounted) return;
+
+    if (error != null) {
+      setState(() {
+        loading = false;
+        errorMessage = error;
+      });
+      return;
+    }
+
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
     );
   }
 
@@ -73,10 +89,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   onSubmitted: (_) => login(),
                 ),
 
+                if (errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppColors.red, fontSize: 13),
+                  ),
+                ],
+
                 const SizedBox(height: 24),
 
                 ElevatedButton(
-                  onPressed: login,
+                  onPressed: loading ? null : login,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -106,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => const RegisterScreen()),
+                            builder: (_) => const RegisterScreen()),
                       ),
                       child: const Text(
                         "Create an account",
@@ -145,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
+        borderSide: const BorderSide(color: AppColors.pink, width: 2),
       ),
     );
   }

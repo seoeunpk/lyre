@@ -14,25 +14,72 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final nameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
+  bool loading = false;
+  String? errorMessage;
+
   @override
   void dispose() {
     nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
+    confirmPasswordController.dispose();
     super.dispose();
   }
 
+  String? _validatePassword(String password) {
+    if (password.length <= 6) return "Password must be more than 6 characters.";
+    if (!RegExp(r'^[a-zA-Z0-9]+$').hasMatch(password)) {
+      return "Password can only contain English letters and numbers.";
+    }
+    if (!RegExp(r'[a-zA-Z]').hasMatch(password)) {
+      return "Password must include at least one letter.";
+    }
+    if (!RegExp(r'[0-9]').hasMatch(password)) {
+      return "Password must include at least one number.";
+    }
+    return null;
+  }
+
   void register() async {
-    await AuthService().signUp(
+    final password = passwordController.text;
+    final confirm = confirmPasswordController.text;
+
+    final err = _validatePassword(password);
+    if (err != null) {
+      setState(() => errorMessage = err);
+      return;
+    }
+
+    if (password != confirm) {
+      setState(() => errorMessage = "Passwords do not match.");
+      return;
+    }
+
+    setState(() {
+      loading = true;
+      errorMessage = null;
+    });
+
+    final error = await AuthService().signUp(
       nameController.text.trim(),
       emailController.text.trim(),
-      passwordController.text,
+      password,
     );
 
     if (!mounted) return;
+
+    if (error != null) {
+      setState(() {
+        loading = false;
+        errorMessage = error;
+      });
+      return;
+    }
+
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
     );
   }
 
@@ -85,10 +132,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 style: const TextStyle(color: AppColors.text, fontSize: 15),
                 decoration: _inputDecoration(label: "Password"),
               ),
+              const SizedBox(height: 14),
+
+              TextField(
+                controller: confirmPasswordController,
+                obscureText: true,
+                style: const TextStyle(color: AppColors.text, fontSize: 15),
+                decoration: _inputDecoration(label: "Confirm Password"),
+                onSubmitted: (_) => register(),
+              ),
+              if (errorMessage != null) ...[
+                const SizedBox(height: 16),
+                Text(
+                  errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.red, fontSize: 13),
+                ),
+              ],
+
               const SizedBox(height: 24),
 
               ElevatedButton(
-                onPressed: register,
+                onPressed: loading ? null : register,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -128,7 +193,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
+        borderSide: const BorderSide(color: AppColors.pink, width: 2),
       ),
     );
   }

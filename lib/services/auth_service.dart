@@ -1,59 +1,48 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final _auth = FirebaseAuth.instance;
-  final _googleSignIn = GoogleSignIn();
 
-  // used in main.dart to decide which screen to show on launch
   User? get currentUser => _auth.currentUser;
 
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
-
-  // returns null on success, error message on failure
   Future<String?> signIn(String email, String password) async {
     try {
-      await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
       return null;
     } on FirebaseAuthException catch (e) {
-      return e.message ?? 'Sign in failed';
+      if (e.code == 'invalid-email') return 'Please enter a valid email address.';
+      if (e.code == 'user-disabled') return 'This account has been disabled.';
+      if (e.code == 'too-many-requests') return 'Too many attempts. Please try again later.';
+      return 'Incorrect email or password.';
     }
   }
 
   Future<String?> signUp(String name, String email, String password) async {
     try {
-      final cred = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
       await cred.user?.updateDisplayName(name);
       return null;
     } on FirebaseAuthException catch (e) {
-      return e.message ?? 'Sign up failed';
+      if (e.code == 'email-already-in-use') return 'An account with that email already exists.';
+      if (e.code == 'invalid-email') return 'Please enter a valid email address.';
+      if (e.code == 'weak-password') return 'Password must be at least 6 characters.';
+      return 'Sign up failed. Please try again.';
     }
   }
 
-  Future<UserCredential?> signInWithGoogle() async {
-    final googleUser = await _googleSignIn.signIn();
-    if (googleUser == null) return null; // user hit cancel
-
-    final googleAuth = await googleUser.authentication;
-    print('google auth done, signing into firebase');
-
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-
-    return await _auth.signInWithCredential(credential);
+  Future<void> signOut() async {
+    await _auth.signOut();
   }
 
-  Future<void> signOut() async {
-    // need to sign out of google too otherwise it just logs straight back in
-    await _googleSignIn.signOut();
-    await _auth.signOut();
+  Future<String?> deleteAccount() async {
+    try {
+      await _auth.currentUser?.delete();
+      return null;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        return 'Please log out and log back in before deleting your account.';
+      }
+      return 'Failed to delete account. Please try again.';
+    }
   }
 }

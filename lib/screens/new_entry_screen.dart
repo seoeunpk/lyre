@@ -27,17 +27,17 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
 
   String? selectedMood;
 
-  // some default tags to pick from
   final List<String> myTags = [
     'school', 'work', 'comfort', 'late_night', 'friends', 'family', 'love',
   ];
   final Set<String> tags = {};
   bool showTags = true;
 
-  Timer? debounce;
   bool saving = false;
   bool loading = true;
-  bool entryExists = false; // true when we loaded an existing entry (edit mode)
+  bool entryExists = false;
+
+  Timer? debounce;
 
   @override
   void initState() {
@@ -45,15 +45,6 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
     _loadExisting();
   }
 
-  @override
-  void dispose() {
-    noteController.dispose();
-    searchCtrl.dispose();
-    debounce?.cancel();
-    super.dispose();
-  }
-
-  // if this day already has an entry, load it in so we can edit it
   Future<void> _loadExisting() async {
     final uid = AuthService().currentUser?.uid;
     if (uid == null) {
@@ -66,7 +57,6 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
       noteController.text = existing.note;
       selectedMood = existing.mood.isEmpty ? null : existing.mood;
       tags.addAll(existing.tags);
-      // add custom tags to the chip list too so they show up
       for (final t in existing.tags) {
         if (!myTags.contains(t)) myTags.add(t);
       }
@@ -81,6 +71,14 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
       entryExists = true;
     }
     setState(() => loading = false);
+  }
+
+  @override
+  void dispose() {
+    debounce?.cancel();
+    noteController.dispose();
+    searchCtrl.dispose();
+    super.dispose();
   }
 
   void onSpotifySearchChanged(String query) {
@@ -103,7 +101,6 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
           });
         }
       } catch (e) {
-        print('spotify search error: $e'); // debug
         if (mounted) setState(() => searching = false);
       }
     });
@@ -144,11 +141,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           "Add a tag",
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: AppColors.text,
-            fontSize: 16,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.text, fontSize: 16),
         ),
         content: TextField(
           controller: controller,
@@ -170,7 +163,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+              borderSide: const BorderSide(color: AppColors.pink, width: 2),
             ),
           ),
           onSubmitted: (v) => Navigator.pop(context, v.trim()),
@@ -178,14 +171,12 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel",
-                style: TextStyle(color: AppColors.grey)),
+            child: const Text("Cancel", style: TextStyle(color: AppColors.grey)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
             child: const Text("Add",
-                style: TextStyle(
-                    color: AppColors.primary, fontWeight: FontWeight.w700)),
+                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -196,46 +187,6 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         if (!myTags.contains(result)) myTags.add(result);
         tags.add(result);
       });
-    }
-  }
-
-  void saveEntry() async {
-    if (song == null) {
-      showSnackBar("Pick today's song first", isError: true);
-      return;
-    }
-    if (selectedMood == null) {
-      showSnackBar("How are you feeling? Pick a mood", isError: true);
-      return;
-    }
-    if (noteController.text.trim().isEmpty) {
-      showSnackBar("Write something in today's note", isError: true);
-      return;
-    }
-
-    setState(() => saving = true);
-
-    try {
-      final uid = AuthService().currentUser?.uid;
-      if (uid == null) throw Exception('not signed in');
-      print('saving...'); // debug
-
-      final entry = JournalEntry(
-        date: widget.date,
-        mood: selectedMood!,
-        note: noteController.text.trim(),
-        tags: tags.toList(),
-        song: EntrySong.fromTrack(song!),
-      );
-      await _journal.saveEntry(uid, entry);
-
-      if (!mounted) return;
-      showSnackBar(entryExists ? "Entry updated!" : "Entry saved!");
-      Navigator.pop(context, true);
-    } catch (e) {
-      if (!mounted) return;
-      showSnackBar("Failed to save. Try again.", isError: true);
-      setState(() => saving = false);
     }
   }
 
@@ -257,14 +208,12 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel",
-                style: TextStyle(color: AppColors.grey)),
+            child: const Text("Cancel", style: TextStyle(color: AppColors.grey)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text("Delete",
-                style: TextStyle(
-                    color: AppColors.red, fontWeight: FontWeight.w700)),
+                style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -280,20 +229,59 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
           "${widget.date.year}-${widget.date.month.toString().padLeft(2, '0')}-${widget.date.day.toString().padLeft(2, '0')}";
       await _journal.deleteEntry(uid, docId);
       if (!mounted) return;
-      showSnackBar("Entry deleted");
+      _showSnackBar("Entry deleted");
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      showSnackBar("Failed to delete. Try again.", isError: true);
+      _showSnackBar("Failed to delete. Try again.", isError: true);
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  void saveEntry() async {
+    if (song == null) {
+      _showSnackBar("Pick today's song first", isError: true);
+      return;
+    }
+    if (selectedMood == null) {
+      _showSnackBar("How are you feeling? Pick a mood", isError: true);
+      return;
+    }
+    if (noteController.text.trim().isEmpty) {
+      _showSnackBar("Write something in today's note", isError: true);
+      return;
+    }
+
+    setState(() => saving = true);
+
+    try {
+      final uid = AuthService().currentUser?.uid;
+      if (uid == null) throw Exception('not signed in');
+
+      final entry = JournalEntry(
+        date: widget.date,
+        mood: selectedMood!,
+        note: noteController.text.trim(),
+        tags: tags.toList(),
+        song: EntrySong.fromTrack(song!),
+      );
+      await _journal.saveEntry(uid, entry);
+
+      if (!mounted) return;
+      _showSnackBar(entryExists ? "Entry updated!" : "Entry saved!");
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar("Failed to save. Try again.", isError: true);
       setState(() => saving = false);
     }
   }
 
-  void showSnackBar(String message, {bool isError = false}) {
+  void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
         backgroundColor: isError ? AppColors.red : const Color(0xFF4A7B5A),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -304,14 +292,9 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
 
   String get dateLabel {
     final d = widget.date;
-    final weekdays = [
-      "Monday", "Tuesday", "Wednesday", "Thursday",
-      "Friday", "Saturday", "Sunday"
-    ];
-    final months = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
-    ];
+    final weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    final months = ["January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"];
     return "${weekdays[d.weekday - 1]}, ${months[d.month - 1]} ${d.day}";
   }
 
@@ -321,24 +304,18 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left_rounded,
-              color: AppColors.text, size: 26),
+          icon: const Icon(Icons.chevron_left_rounded, color: AppColors.text, size: 26),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
         title: Text(
           dateLabel,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: AppColors.text,
-          ),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.text),
         ),
         actions: [
           if (entryExists)
             IconButton(
-              icon: const Icon(Icons.delete_outline_rounded,
-                  color: AppColors.red),
+              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.red),
               onPressed: saving ? null : confirmDelete,
             ),
         ],
@@ -353,35 +330,17 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     child: Column(
                       children: [
-                        MusicCard(
-                          song: song,
-                          showSearch: showSearch,
-                          searchController: searchCtrl,
-                          results: results,
-                          isSearching: searching,
-                          onAddSong: () => setState(() => showSearch = true),
-                          onSearch: onSpotifySearchChanged,
-                          onSelect: selectSong,
-                          onRemove: removeSong,
-                          onCancel: () {
-                            setState(() {
-                              showSearch = false;
-                              results = [];
-                              searchCtrl.clear();
-                            });
-                          },
-                        ),
+                        _musicSection(),
                         const SizedBox(height: 14),
                         MoodCard(selected: selectedMood, onSelect: selectMood),
                         const SizedBox(height: 14),
-                        NoteCard(controller: noteController),
+                        _noteSection(),
                         const SizedBox(height: 14),
                         TagsCard(
                           myTags: myTags,
                           tags: tags,
                           expanded: showTags,
-                          onExpand: () =>
-                              setState(() => showTags = !showTags),
+                          onExpand: () => setState(() => showTags = !showTags),
                           onTag: toggleTag,
                           onAdd: addCustomTag,
                         ),
@@ -398,12 +357,229 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
             ),
     );
   }
+
+  Widget _musicSection() {
+    return EntryCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Music",
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.text)),
+          const SizedBox(height: 12),
+          if (song != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      image: song!.albumArtUrl.isNotEmpty
+                          ? DecorationImage(
+                              image: NetworkImage(song!.albumArtUrl), fit: BoxFit.cover)
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(song!.trackName,
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 2),
+                        Text(song!.artistName,
+                            style: const TextStyle(fontSize: 12, color: AppColors.grey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: AppColors.grey, size: 18),
+                    onPressed: removeSong,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            )
+          else if (showSearch)
+            Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: searchCtrl,
+                        onChanged: onSpotifySearchChanged,
+                        autofocus: true,
+                        style: const TextStyle(fontSize: 14, color: AppColors.text),
+                        decoration: InputDecoration(
+                          hintText: "Search for a song or artist...",
+                          hintStyle: const TextStyle(color: AppColors.grey, fontSize: 13),
+                          filled: true,
+                          fillColor: AppColors.background,
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(color: AppColors.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(color: AppColors.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(color: AppColors.pink, width: 2),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: () => setState(() {
+                        showSearch = false;
+                        results = [];
+                        searchCtrl.clear();
+                      }),
+                      child: const Text("Cancel",
+                          style: TextStyle(
+                              color: AppColors.grey, fontSize: 13, fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+                if (searching)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: CircularProgressIndicator(
+                        color: AppColors.primary, strokeWidth: 2),
+                  )
+                else if (results.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      children: results.map((track) => ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                        leading: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: AppColors.border,
+                            borderRadius: BorderRadius.circular(8),
+                            image: track.albumArtUrl.isNotEmpty
+                                ? DecorationImage(
+                                    image: NetworkImage(track.albumArtUrl),
+                                    fit: BoxFit.cover)
+                                : null,
+                          ),
+                        ),
+                        title: Text(track.trackName,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: AppColors.text),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        subtitle: Text(track.artistName,
+                            style: const TextStyle(color: AppColors.grey, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        onTap: () => selectSong(track),
+                      )).toList(),
+                    ),
+                  )
+                else if (searchCtrl.text.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text('No songs found for "${searchCtrl.text}"',
+                        style: const TextStyle(color: AppColors.grey, fontSize: 13)),
+                  ),
+              ],
+            )
+          else
+            GestureDetector(
+              onTap: () => setState(() => showSearch = true),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const Center(
+                  child: Text("Add a song",
+                      style: TextStyle(
+                          color: AppColors.grey, fontSize: 14, fontWeight: FontWeight.w500)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _noteSection() {
+    return EntryCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Today's note",
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.text)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: noteController,
+            maxLines: 6,
+            style: const TextStyle(fontSize: 14, height: 1.6, color: AppColors.text),
+            decoration: InputDecoration(
+              hintText: "Write here...",
+              hintStyle: const TextStyle(color: AppColors.grey, fontSize: 14),
+              filled: true,
+              fillColor: AppColors.background,
+              contentPadding: const EdgeInsets.all(14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.pink, width: 2),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class MoodCard extends StatelessWidget {
   final String? selected;
   final ValueChanged<String> onSelect;
-  const MoodCard({required this.selected, required this.onSelect});
+  const MoodCard({super.key, required this.selected, required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
@@ -428,8 +604,7 @@ class MoodCard extends StatelessWidget {
               return GestureDetector(
                 onTap: () => onSelect(m.label),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? m.color.withValues(alpha: 0.35)
@@ -450,8 +625,7 @@ class MoodCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 13,
                           color: AppColors.text,
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                         ),
                       ),
                     ],
@@ -466,371 +640,6 @@ class MoodCard extends StatelessWidget {
   }
 }
 
-class MusicCard extends StatelessWidget {
-  final SpotifyTrack? song;
-  final bool showSearch;
-  final TextEditingController searchController;
-  final List<SpotifyTrack> results;
-  final bool isSearching;
-  final VoidCallback onAddSong;
-  final ValueChanged<String> onSearch;
-  final ValueChanged<SpotifyTrack> onSelect;
-  final VoidCallback onRemove;
-  final VoidCallback onCancel;
-
-  const MusicCard({
-    required this.song,
-    required this.showSearch,
-    required this.searchController,
-    required this.results,
-    required this.isSearching,
-    required this.onAddSong,
-    required this.onSearch,
-    required this.onSelect,
-    required this.onRemove,
-    required this.onCancel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return EntryCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Music",
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.text,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (song != null)
-            AttachedSongTile(track: song!, onRemove: onRemove)
-          else if (showSearch)
-            SearchPanel(
-              controller: searchController,
-              results: results,
-              isSearching: isSearching,
-              onChanged: onSearch,
-              onSelect: onSelect,
-              onCancel: onCancel,
-            )
-          else
-            AddSongButton(onTap: onAddSong),
-        ],
-      ),
-    );
-  }
-}
-
-class AddSongButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const AddSongButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: const Center(
-          child: Text(
-            "Add a song",
-            style: TextStyle(
-              color: AppColors.grey,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class AttachedSongTile extends StatelessWidget {
-  final SpotifyTrack track;
-  final VoidCallback onRemove;
-  const AttachedSongTile({required this.track, required this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 1.5),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(10),
-              image: track.albumArtUrl.isNotEmpty
-                  ? DecorationImage(
-                      image: NetworkImage(track.albumArtUrl),
-                      fit: BoxFit.cover)
-                  : null,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  track.trackName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  track.artistName,
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.grey),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close_rounded,
-                color: AppColors.grey, size: 18),
-            onPressed: onRemove,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class SearchPanel extends StatelessWidget {
-  final TextEditingController controller;
-  final List<SpotifyTrack> results;
-  final bool isSearching;
-  final ValueChanged<String> onChanged;
-  final ValueChanged<SpotifyTrack> onSelect;
-  final VoidCallback onCancel;
-
-  const SearchPanel({
-    required this.controller,
-    required this.results,
-    required this.isSearching,
-    required this.onChanged,
-    required this.onSelect,
-    required this.onCancel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                onChanged: onChanged,
-                autofocus: true,
-                style: const TextStyle(
-                    fontSize: 14, color: AppColors.text),
-                decoration: InputDecoration(
-                  hintText: "Search for a song or artist...",
-                  hintStyle: const TextStyle(
-                      color: AppColors.grey, fontSize: 13),
-                  filled: true,
-                  fillColor: AppColors.background,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide:
-                        const BorderSide(color: AppColors.primary, width: 2),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            GestureDetector(
-              onTap: onCancel,
-              child: const Text(
-                "Cancel",
-                style: TextStyle(
-                    color: AppColors.grey,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
-        if (isSearching)
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: SizedBox(
-              height: 18,
-              width: 18,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: AppColors.primary),
-            ),
-          ),
-        if (!isSearching && results.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.only(top: 8),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              children: results.map((track) {
-                final isFirst = track == results.first;
-                final isLast = track == results.last;
-                return Column(
-                  children: [
-                    if (!isFirst)
-                      const Divider(height: 1, color: AppColors.border),
-                    ListTile(
-                      dense: true,
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12),
-                      leading: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          color: AppColors.border,
-                          borderRadius: BorderRadius.circular(8),
-                          image: track.albumArtUrl.isNotEmpty
-                              ? DecorationImage(
-                                  image: NetworkImage(track.albumArtUrl),
-                                  fit: BoxFit.cover)
-                              : null,
-                        ),
-                      ),
-                      title: Text(
-                        track.trackName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: AppColors.text,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        track.artistName,
-                        style: const TextStyle(
-                            color: AppColors.grey, fontSize: 12),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      onTap: () => onSelect(track),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(
-                          top: isFirst ? const Radius.circular(14) : Radius.zero,
-                          bottom: isLast ? const Radius.circular(14) : Radius.zero,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-          ),
-        if (!isSearching && results.isEmpty && controller.text.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              "No songs found for \"${controller.text}\"",
-              style: const TextStyle(
-                  color: AppColors.grey, fontSize: 13),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class NoteCard extends StatelessWidget {
-  final TextEditingController controller;
-  const NoteCard({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return EntryCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Today's note",
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.text,
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: controller,
-            maxLines: 6,
-            style: const TextStyle(
-                fontSize: 14, height: 1.6, color: AppColors.text),
-            decoration: InputDecoration(
-              hintText: "Write here...",
-              hintStyle:
-                  const TextStyle(color: AppColors.grey, fontSize: 14),
-              filled: true,
-              fillColor: AppColors.background,
-              contentPadding: const EdgeInsets.all(14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide:
-                    const BorderSide(color: AppColors.primary, width: 2),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-
 class TagsCard extends StatelessWidget {
   final List<String> myTags;
   final Set<String> tags;
@@ -840,6 +649,7 @@ class TagsCard extends StatelessWidget {
   final VoidCallback onAdd;
 
   const TagsCard({
+    super.key,
     required this.myTags,
     required this.tags,
     required this.expanded,
@@ -904,6 +714,7 @@ class TagChip extends StatelessWidget {
   final VoidCallback onTap;
 
   const TagChip({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -938,7 +749,7 @@ class TagChip extends StatelessWidget {
 
 class AddTagChip extends StatelessWidget {
   final VoidCallback onTap;
-  const AddTagChip({required this.onTap});
+  const AddTagChip({super.key, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -965,7 +776,7 @@ class AddTagChip extends StatelessWidget {
 
 class EntryCard extends StatelessWidget {
   final Widget child;
-  const EntryCard({required this.child});
+  const EntryCard({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -977,7 +788,7 @@ class EntryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.text.withValues(alpha: 0.04),
+            color: AppColors.text.withOpacity(0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -993,6 +804,7 @@ class DoneButton extends StatelessWidget {
   final bool isEdit;
   final VoidCallback onPressed;
   const DoneButton({
+    super.key,
     required this.saving,
     required this.isEdit,
     required this.onPressed,
