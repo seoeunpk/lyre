@@ -28,7 +28,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   String? _validatePassword(String password) {
-    if (password.length <= 6) return "Password must be over 6 characters.";
+    if (password.length < 6) return "Password must be at least 6 characters.";
     if (!RegExp(r'^[a-zA-Z0-9]+$').hasMatch(password)) {
       return "Letters and numbers only.";
     }
