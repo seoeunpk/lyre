@@ -1,28 +1,102 @@
-# Team Name
+# LYRE
 
-LYRE
+A mood-to-music journal for iOS and Android. Log how you feel, attach a song, and watch your month fill up with album art.
 
-# Proposed Level of Achievement
+---
 
-Apollo
+## Tech Stack
 
-# Motivation
+| Layer | Technology |
+|---|---|
+| UI / Client | Flutter (Dart) |
+| Identity | Firebase Auth |
+| Database | Cloud Firestore |
+| Music data | Spotify Web API |
+| Config | flutter_dotenv |
 
-Being huge fans of music, we were drawn to the idea of building a mood to music journal, a space where emotional reflection and music naturally intersect. More than just a journaling tool, we saw it as a way to help users recognize their emotional patterns over time, while making the experience feel intimate and genuinely enjoyable.
+---
 
-At the same time, we noticed that many people struggle to maintain consistent journaling habits, often finding traditional journals too plain or disconnected from their daily lives. Music, on the other hand, is something most people engage with every single day. By bridging the two, we wanted to create something that felt less like a chore and more like a natural extension of how people already process their emotions. We believe a mood to music journal can make self-reflection more accessible and meaningful for a wide range of users.
+## Features
 
-# User Stories
+- **Calendar view** — Monthly grid where each day shows the album art of your entry
+- **Journal entries** — Write a reflection, pick a mood, and attach a Spotify track
+- **Custom moods** — Add your own mood labels with an emoji and colour
+- **Tagging** — Tag entries (e.g. `school`, `cozy`) for richer filtering
+- **History** — Chronological list of all entries with search and mood/tag filters
+- **Insights** — Most frequent moods, songs, artists, and tags *(in progress)*
+- **Social** — Share your calendar with friends *(planned)*
 
-1. As someone who links certain songs to certain moments, I want to add songs or artists to each entry so I can capture the music that matches my mood.
-2. As someone who wants to look back on past emotions, I want to browse and filter my old entries by mood or date so I can revisit them easily.
-3. As someone who wants to understand myself better, I want to write a journal entry with my mood and a short reflection so I can remember how I felt that day. I also want to see simple patterns in my moods and music choices so I can notice trends over time.
+---
 
-# Technology Stack
+## Getting Started
 
-Flutter
-Dart
-Firebase Auth
-Firebase Firestore
-Git & Github
-Spotify API
+### Requirements
+
+- Flutter SDK
+- Git
+- A Spotify developer account
+- An iOS/Android emulator or physical device
+
+### Clone and install
+
+```bash
+git clone https://github.com/seoeunpk/lyre.git
+cd lyre
+flutter pub get
+```
+
+### Spotify credentials
+
+Create an app in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and add your credentials to a `.env` file at the project root:
+
+```
+SPOTIFY_CLIENT_ID=your_client_id
+SPOTIFY_CLIENT_SECRET=your_client_secret
+```
+
+### Firebase
+
+Firebase configuration files are already included. To connect a different Firebase project, regenerate the config files with FlutterFire.
+
+### Run
+
+```bash
+flutter run
+```
+
+---
+
+## Project Structure
+
+```
+lyre/
+├── lib/
+│   ├── main.dart
+│   ├── firebase_options.dart
+│   ├── screens/
+│   │   ├── login_screen.dart
+│   │   ├── register_screen.dart
+│   │   ├── home_screen.dart
+│   │   ├── new_entry_screen.dart
+│   │   ├── profile_screen.dart
+│   │   ├── history_screen.dart
+│   │   └── insights_screen.dart
+│   ├── services/
+│   │   ├── auth_service.dart
+│   │   ├── journal_service.dart
+│   │   ├── mood_service.dart
+│   │   └── spotify_service.dart
+│   └── utils/
+│       └── app_colors.dart
+├── firestore.rules
+├── pubspec.yaml
+└── .env                  (gitignored)
+```
+
+---
+
+## Links
+
+- [Design Prototype (Figma)](https://www.figma.com/design/0shqeBm2e1evmefJNNsKLg/LYRE-Design-Prototype?node-id=0-1&t=6UMk7Dr3pNRT5HA3-1)
+- [Walkthrough Video (Milestone 1)](https://drive.google.com/file/d/1F3NlkdM53wkxh6loYJN4w5plF0aAaLxa/view?usp=sharing)
+- [Project Log](https://docs.google.com/spreadsheets/d/1rLDhBnsf3d1k92-rT8nJCT8-4sXqbOeaQwM6hbZlJHc/edit?usp=sharing)
