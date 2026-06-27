@@ -25,9 +25,13 @@ class Moods {
     Mood(label: 'Tired', emoji: '😴', color: Color(0xFFA9B0B8)),
   ];
 
+  static List<Mood> custom = [];
+
+  static List<Mood> get combined => [...all, ...custom];
+
   static Mood? byLabel(String? label) {
     if (label == null || label.isEmpty) return null;
-    for (final m in all) {
+    for (final m in combined) {
       if (m.label == label) return m;
     }
     return null;

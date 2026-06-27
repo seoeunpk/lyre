@@ -4,6 +4,7 @@ import '../models/journal_entry.dart';
 import '../models/mood.dart';
 import '../services/auth_service.dart';
 import '../services/journal_service.dart';
+import '../services/mood_service.dart';
 import '../services/spotify_service.dart';
 import '../utils/app_colors.dart';
 
@@ -32,6 +33,8 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   ];
   final Set<String> tags = {};
   bool showTags = true;
+
+  List<Mood> _customMoods = List.from(Moods.custom);
 
   bool saving = false;
   bool loading = true;
@@ -69,6 +72,11 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         );
       }
       entryExists = true;
+    }
+    if (Moods.custom.isEmpty) {
+      final loaded = await MoodService().getCustomMoods(uid);
+      Moods.custom = loaded;
+      if (mounted) setState(() => _customMoods = List.from(loaded));
     }
     setState(() => loading = false);
   }
@@ -120,6 +128,138 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
 
   void selectMood(String label) {
     setState(() => selectedMood = selectedMood == label ? null : label);
+  }
+
+  void addCustomMood() async {
+    final emojiCtrl = TextEditingController();
+    final labelCtrl = TextEditingController();
+    Color pickedColor = const Color(0xFF7FA7D9);
+
+    const palette = [
+      Color(0xFFF6C744), Color(0xFFF38B4A), Color(0xFFE57373),
+      Color(0xFFB69CD8), Color(0xFF7FA7D9), Color(0xFFA8D8CE),
+      Color(0xFFF4BDD0), Color(0xFF9E9E9E), Color(0xFF4A7B5A),
+    ];
+
+    final mood = await showDialog<Mood>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("Add a mood",
+              style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.text, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  SizedBox(
+                    width: 56,
+                    child: TextField(
+                      controller: emojiCtrl,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 24),
+                      decoration: InputDecoration(
+                        hintText: "😊",
+                        hintStyle: const TextStyle(fontSize: 24),
+                        filled: true,
+                        fillColor: AppColors.background,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: labelCtrl,
+                      style: const TextStyle(fontSize: 14, color: AppColors.text),
+                      decoration: InputDecoration(
+                        hintText: "Name",
+                        hintStyle: const TextStyle(color: AppColors.grey),
+                        filled: true,
+                        fillColor: AppColors.background,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: palette.map((c) => GestureDetector(
+                  onTap: () => setLocal(() => pickedColor = c),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: c,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: pickedColor == c ? AppColors.text : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                )).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Cancel", style: TextStyle(color: AppColors.grey)),
+            ),
+            TextButton(
+              onPressed: () {
+                final emoji = emojiCtrl.text.trim();
+                final label = labelCtrl.text.trim();
+                if (emoji.isEmpty || label.isEmpty) return;
+                final dupe = Moods.combined.any((m) =>
+                    m.label.toLowerCase() == label.toLowerCase());
+                if (dupe) return;
+                Navigator.pop(ctx, Mood(label: label, emoji: emoji, color: pickedColor));
+              },
+              child: const Text("Add",
+                  style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (mood == null || !mounted) return;
+    final uid = AuthService().currentUser?.uid;
+    if (uid != null) await MoodService().addCustomMood(uid, mood);
+    Moods.custom = [...Moods.custom, mood];
+    setState(() => _customMoods = List.from(Moods.custom));
   }
 
   void toggleTag(String label) {
@@ -332,7 +472,12 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                       children: [
                         _musicSection(),
                         const SizedBox(height: 14),
-                        MoodCard(selected: selectedMood, onSelect: selectMood),
+                        MoodCard(
+                          selected: selectedMood,
+                          onSelect: selectMood,
+                          customMoods: _customMoods,
+                          onAddMood: addCustomMood,
+                        ),
                         const SizedBox(height: 14),
                         _noteSection(),
                         const SizedBox(height: 14),
@@ -370,9 +515,9 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.08),
+                color: AppColors.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1.5),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 1.5),
               ),
               child: Row(
                 children: [
@@ -579,7 +724,48 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
 class MoodCard extends StatelessWidget {
   final String? selected;
   final ValueChanged<String> onSelect;
-  const MoodCard({super.key, required this.selected, required this.onSelect});
+  final List<Mood> customMoods;
+  final VoidCallback onAddMood;
+
+  const MoodCard({
+    super.key,
+    required this.selected,
+    required this.onSelect,
+    required this.customMoods,
+    required this.onAddMood,
+  });
+
+  Widget _chip(Mood m, bool isSelected) {
+    return GestureDetector(
+      onTap: () => onSelect(m.label),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? m.color.withValues(alpha: 0.35) : AppColors.background,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? m.color : AppColors.border,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(m.emoji, style: const TextStyle(fontSize: 14)),
+            const SizedBox(width: 6),
+            Text(
+              m.label,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.text,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -599,40 +785,28 @@ class MoodCard extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: Moods.all.map((m) {
-              final isSelected = selected == m.label;
-              return GestureDetector(
-                onTap: () => onSelect(m.label),
+            children: [
+              ...Moods.all.map((m) => _chip(m, selected == m.label)),
+              ...customMoods.map((m) => _chip(m, selected == m.label)),
+              GestureDetector(
+                onTap: onAddMood,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? m.color.withValues(alpha: 0.35)
-                        : AppColors.background,
+                    color: AppColors.lightGrey,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected ? m.color : AppColors.border,
-                      width: isSelected ? 2 : 1,
+                  ),
+                  child: const Text(
+                    "+ add",
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.grey,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(m.emoji, style: const TextStyle(fontSize: 14)),
-                      const SizedBox(width: 6),
-                      Text(
-                        m.label,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.text,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
-              );
-            }).toList(),
+              ),
+            ],
           ),
         ],
       ),
@@ -727,19 +901,15 @@ class TagChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? AppColors.darkPink : AppColors.pink,
+          color: AppColors.pink,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? AppColors.darkPink : Colors.transparent,
-            width: 1.5,
-          ),
         ),
         child: Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 13,
             color: AppColors.text,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ),
@@ -788,7 +958,7 @@ class EntryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.text.withOpacity(0.04),
+            color: AppColors.text.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),

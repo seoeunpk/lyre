@@ -9,6 +9,7 @@ import 'insights_screen.dart';
 import 'login_screen.dart';
 import 'new_entry_screen.dart';
 import 'profile_screen.dart';
+import '../services/mood_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +24,19 @@ class _HomeScreenState extends State<HomeScreen> {
   final DateTime today = DateTime.now();
 
   String? get _uid => AuthService().currentUser?.uid;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCustomMoods();
+  }
+
+  Future<void> _loadCustomMoods() async {
+    final uid = _uid;
+    if (uid == null) return;
+    final moods = await MoodService().getCustomMoods(uid);
+    Moods.custom = moods;
+  }
 
   void showProfileMenu() {
     showModalBottomSheet(
@@ -141,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _monthHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+      padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
       child: Row(
         children: [
           IconButton(
@@ -295,7 +309,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             onPressed: openHistory,
-            icon: const Icon(Icons.menu_book_rounded, color: AppColors.grey),
+            icon: const Icon(Icons.history_rounded, color: AppColors.grey),
           ),
           GestureDetector(
             onTap: () => openEntry(today),

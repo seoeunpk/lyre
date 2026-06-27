@@ -7,6 +7,13 @@ import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 import 'utils/app_colors.dart';
 
+class _NoStretchBehavior extends ScrollBehavior {
+  const _NoStretchBehavior();
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const ClampingScrollPhysics();
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
@@ -24,6 +31,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'LYRE',
       debugShowCheckedModeBanner: false,
+      scrollBehavior: const _NoStretchBehavior(),
       theme: ThemeData(
         primaryColor: AppColors.primary,
         textTheme: Typography.material2021().black.merge(
