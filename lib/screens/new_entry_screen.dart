@@ -49,36 +49,36 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   }
 
   Future<void> _loadExisting() async {
-    final uid = AuthService().currentUser?.uid;
-    if (uid == null) {
-      setState(() => loading = false);
-      return;
-    }
-    final existing = await _journal.getEntryForDate(uid, widget.date);
-    if (!mounted) return;
-    if (existing != null) {
-      noteController.text = existing.note;
-      selectedMood = existing.mood.isEmpty ? null : existing.mood;
-      tags.addAll(existing.tags);
-      for (final t in existing.tags) {
-        if (!myTags.contains(t)) myTags.add(t);
+    try {
+      final uid = AuthService().currentUser?.uid;
+      if (uid == null) return;
+      final existing = await _journal.getEntryForDate(uid, widget.date);
+      if (!mounted) return;
+      if (existing != null) {
+        noteController.text = existing.note;
+        selectedMood = existing.mood.isEmpty ? null : existing.mood;
+        tags.addAll(existing.tags);
+        for (final t in existing.tags) {
+          if (!myTags.contains(t)) myTags.add(t);
+        }
+        if (existing.song != null) {
+          song = SpotifyTrack(
+            trackId: existing.song!.trackId,
+            trackName: existing.song!.trackName,
+            artistName: existing.song!.artistName,
+            albumArtUrl: existing.song!.albumArtUrl,
+          );
+        }
+        entryExists = true;
       }
-      if (existing.song != null) {
-        song = SpotifyTrack(
-          trackId: existing.song!.trackId,
-          trackName: existing.song!.trackName,
-          artistName: existing.song!.artistName,
-          albumArtUrl: existing.song!.albumArtUrl,
-        );
+      if (Moods.custom.isEmpty) {
+        final loaded = await MoodService().getCustomMoods(uid);
+        Moods.custom = loaded;
+        if (mounted) setState(() => _customMoods = List.from(loaded));
       }
-      entryExists = true;
+    } finally {
+      if (mounted) setState(() => loading = false);
     }
-    if (Moods.custom.isEmpty) {
-      final loaded = await MoodService().getCustomMoods(uid);
-      Moods.custom = loaded;
-      if (mounted) setState(() => _customMoods = List.from(loaded));
-    }
-    setState(() => loading = false);
   }
 
   @override
