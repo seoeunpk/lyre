@@ -6,8 +6,13 @@ class MoodService {
   final _db = FirebaseFirestore.instance;
 
   Future<List<Mood>> getCustomMoods(String uid) async {
-    final doc = await _db.collection('users').doc(uid).get();
-    final list = doc.data()?['customMoods'] as List? ?? [];
+    final doc = await _db
+        .collection('users')
+        .doc(uid)
+        .collection('entries')
+        .doc('_custom_moods')
+        .get();
+    final list = doc.data()?['moods'] as List? ?? [];
     return list.map((m) => Mood(
       label: m['label'] as String,
       emoji: m['emoji'] as String,
@@ -16,8 +21,13 @@ class MoodService {
   }
 
   Future<void> addCustomMood(String uid, Mood mood) async {
-    await _db.collection('users').doc(uid).set({
-      'customMoods': FieldValue.arrayUnion([{
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('entries')
+        .doc('_custom_moods')
+        .set({
+      'moods': FieldValue.arrayUnion([{
         'label': mood.label,
         'emoji': mood.emoji,
         'colorValue': mood.color.toARGB32(),

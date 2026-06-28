@@ -51,7 +51,10 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   Future<void> _loadExisting() async {
     try {
       final uid = AuthService().currentUser?.uid;
-      if (uid == null) return;
+      if (uid == null) {
+        setState(() => loading = false);
+        return;
+      }
       final existing = await _journal.getEntryForDate(uid, widget.date);
       if (!mounted) return;
       if (existing != null) {
@@ -72,10 +75,13 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         entryExists = true;
       }
       if (Moods.custom.isEmpty) {
-        final loaded = await MoodService().getCustomMoods(uid);
-        Moods.custom = loaded;
-        if (mounted) setState(() => _customMoods = List.from(loaded));
+        try {
+          final loaded = await MoodService().getCustomMoods(uid);
+          Moods.custom = loaded;
+          if (mounted) setState(() => _customMoods = List.from(loaded));
+        } catch (_) {}
       }
+    } catch (_) {
     } finally {
       if (mounted) setState(() => loading = false);
     }

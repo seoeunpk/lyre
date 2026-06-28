@@ -21,7 +21,8 @@ class JournalService {
         .doc(userId)
         .collection('entries')
         .doc(docId)
-        .get();
+        .get()
+        .timeout(const Duration(seconds: 10));
     if (!doc.exists) return null;
     return JournalEntry.fromMap(doc.data()!);
   }
