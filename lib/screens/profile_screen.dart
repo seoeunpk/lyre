@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/animated_snackbar.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -123,15 +124,7 @@ class ProfileScreen extends StatelessWidget {
     if (!context.mounted) return;
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error, style: const TextStyle(fontWeight: FontWeight.w600)),
-          backgroundColor: AppColors.red,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
+      showAnimatedSnackBar(context, error, isError: true);
       return;
     }
 

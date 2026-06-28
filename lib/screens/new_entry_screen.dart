@@ -7,6 +7,7 @@ import '../services/journal_service.dart';
 import '../services/mood_service.dart';
 import '../services/spotify_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/animated_snackbar.dart';
 
 class NewEntryScreen extends StatefulWidget {
   final DateTime date;
@@ -425,15 +426,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
-        backgroundColor: isError ? AppColors.red : const Color(0xFF4A7B5A),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+    showAnimatedSnackBar(context, message, isError: isError);
   }
 
   String get dateLabel {

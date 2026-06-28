@@ -4,6 +4,7 @@ import '../models/mood.dart';
 import '../services/auth_service.dart';
 import '../services/journal_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/animated_snackbar.dart';
 import 'history_screen.dart';
 import 'insights_screen.dart';
 import 'login_screen.dart';
@@ -240,16 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return GestureDetector(
       onTap: isFuture
-          ? () => ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text("Can't add an entry for a future date.",
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  backgroundColor: AppColors.red,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  margin: const EdgeInsets.all(16),
-                ),
-              )
+          ? () => showAnimatedSnackBar(context, "Can't add an entry for a future date.", isError: true)
           : () => openEntry(date),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -299,7 +291,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return BottomAppBar(
       color: AppColors.surface,
       surfaceTintColor: Colors.transparent,
-      child: Row(
+      padding: EdgeInsets.zero,
+      child: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+        ),
+        child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           IconButton(
@@ -338,6 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.person_outline_rounded, color: AppColors.grey),
           ),
         ],
+        ),
       ),
     );
   }
