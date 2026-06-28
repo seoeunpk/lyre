@@ -121,8 +121,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // ── Header ─────────────────────────────────────────────────────────────────
-
   Widget _header() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
@@ -487,7 +485,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             IconButton(
               onPressed: openProfile,
-              icon: const Icon(Icons.person_outline_rounded, color: AppColors.grey),
+              icon: const Icon(Icons.person_outline_rounded,
+                  color: AppColors.grey),
             ),
           ],
         ),
