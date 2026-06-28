@@ -4,9 +4,9 @@ import '../models/mood.dart';
 import '../services/auth_service.dart';
 import '../services/journal_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/animated_snackbar.dart';
 import 'history_screen.dart';
 import 'insights_screen.dart';
-import 'login_screen.dart';
 import 'new_entry_screen.dart';
 import 'profile_screen.dart';
 import '../services/mood_service.dart';
@@ -38,56 +38,10 @@ class _HomeScreenState extends State<HomeScreen> {
     Moods.custom = moods;
   }
 
-  void showProfileMenu() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              ListTile(
-                title: const Text("Profile",
-                    style: TextStyle(color: AppColors.text, fontWeight: FontWeight.w500)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                  );
-                },
-              ),
-              ListTile(
-                title: const Text("Log Out",
-                    style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w500)),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await AuthService().signOut();
-                  if (!mounted) return;
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
+  void openProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
     );
   }
 
@@ -141,17 +95,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _key(DateTime d) => "${d.year}-${d.month}-${d.day}";
 
-  void prevMonth() {
-    setState(() {
-      month = DateTime(month.year, month.month - 1);
-    });
-  }
-
-  void nextMonth() {
-    setState(() {
-      month = DateTime(month.year, month.month + 1);
-    });
-  }
+  void prevMonth() => setState(() => month = DateTime(month.year, month.month - 1));
+  void nextMonth() => setState(() => month = DateTime(month.year, month.month + 1));
 
   Widget _monthHeader() {
     return Padding(
@@ -240,16 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return GestureDetector(
       onTap: isFuture
-          ? () => ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text("Can't add an entry for a future date.",
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  backgroundColor: AppColors.red,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  margin: const EdgeInsets.all(16),
-                ),
-              )
+          ? () => showAnimatedSnackBar(context, "Can't add an entry for a future date.", isError: true)
           : () => openEntry(date),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -270,9 +206,9 @@ class _HomeScreenState extends State<HomeScreen> {
               boxShadow: glowColor != null
                   ? [
                       BoxShadow(
-                        color: glowColor.withValues(alpha: 0.55),
-                        blurRadius: 8,
-                        spreadRadius: 1,
+                        color: glowColor.withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        spreadRadius: 2,
                       ),
                     ]
                   : null,
@@ -299,45 +235,59 @@ class _HomeScreenState extends State<HomeScreen> {
     return BottomAppBar(
       color: AppColors.surface,
       surfaceTintColor: Colors.transparent,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.calendar_month_rounded,
-                color: AppColors.primary),
-          ),
-          IconButton(
-            onPressed: openHistory,
-            icon: const Icon(Icons.history_rounded, color: AppColors.grey),
-          ),
-          GestureDetector(
-            onTap: () => openEntry(today),
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Text("+",
-                    style: TextStyle(
-                        fontSize: 26,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w300)),
+      padding: EdgeInsets.zero,
+      child: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.calendar_month_rounded,
+                  color: AppColors.primary),
+            ),
+            IconButton(
+              onPressed: openHistory,
+              icon: const Icon(Icons.history_rounded, color: AppColors.grey),
+            ),
+            GestureDetector(
+              onTap: () => openEntry(today),
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.text.withValues(alpha: 0.18),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Text("+",
+                      style: TextStyle(
+                          fontSize: 28,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w400)),
+                ),
               ),
             ),
-          ),
-          IconButton(
-            onPressed: openInsights,
-            icon: const Icon(Icons.bar_chart_rounded, color: AppColors.grey),
-          ),
-          IconButton(
-            onPressed: showProfileMenu,
-            icon: const Icon(Icons.person_outline_rounded, color: AppColors.grey),
-          ),
-        ],
+            IconButton(
+              onPressed: openInsights,
+              icon: const Icon(Icons.bar_chart_rounded, color: AppColors.grey),
+            ),
+            IconButton(
+              onPressed: openProfile,
+              icon: const Icon(Icons.person_outline_rounded,
+                  color: AppColors.grey),
+            ),
+          ],
+        ),
       ),
     );
   }

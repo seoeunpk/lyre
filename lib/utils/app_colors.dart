@@ -4,8 +4,8 @@ class AppColors {
   static const primary = Color(0xFF111111);
   static const text = Color(0xFF111111);
   static const grey = Color(0xFF9E9E9E);
-  static const background = Color(0xFFFFFFFF);
-  static const surface = Color(0xFFFFFFFF);
+  static const background = Color(0xFFF9F8F6);
+  static const surface = Color(0xFFF9F8F6);
   static const lightGrey = Color(0xFFEEEEEE);
   static const border = Color(0xFFE8E8E8);
   static const red = Color(0xFFE53935);

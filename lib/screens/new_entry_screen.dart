@@ -5,8 +5,10 @@ import '../models/mood.dart';
 import '../services/auth_service.dart';
 import '../services/journal_service.dart';
 import '../services/mood_service.dart';
+import '../services/tag_service.dart';
 import '../services/spotify_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/animated_snackbar.dart';
 
 class NewEntryScreen extends StatefulWidget {
   final DateTime date;
@@ -28,14 +30,14 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
 
   String? selectedMood;
 
-  final List<String> myTags = [
-    'school', 'work', 'comfort', 'late_night', 'friends', 'family', 'love',
-  ];
+  final List<String> myTags = [];
   final Set<String> tags = {};
   bool showTags = true;
 
   List<Mood> _customMoods = List.from(Moods.custom);
 
+  bool _moodExpanded = true;
+  bool _noteExpanded = true;
   bool saving = false;
   bool loading = true;
   bool entryExists = false;
@@ -81,6 +83,12 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
           if (mounted) setState(() => _customMoods = List.from(loaded));
         } catch (_) {}
       }
+      try {
+        final savedTags = await TagService().getCustomTags(uid);
+        for (final t in savedTags) {
+          if (!myTags.contains(t)) myTags.add(t);
+        }
+      } catch (_) {}
     } catch (_) {
     } finally {
       if (mounted) setState(() => loading = false);
@@ -137,9 +145,18 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   }
 
   void addCustomMood() async {
-    final emojiCtrl = TextEditingController();
     final labelCtrl = TextEditingController();
     Color pickedColor = const Color(0xFF7FA7D9);
+    String selectedEmoji = '😊';
+
+    const emojis = [
+      '😊', '😄', '😁', '🥰', '😍', '🤩', '😎', '🥳', '😇', '😌',
+      '🙂', '😐', '😑', '🫤', '🙃', '🤔', '😕', '😟', '😔', '😢',
+      '😭', '😞', '🥺', '😠', '😤', '😡', '🤬', '😰', '😨', '😧',
+      '🫣', '😴', '🥱', '😪', '🤒', '🤧', '🥴', '🤯', '😵', '🥹',
+      '😮', '🫠', '😬', '🤗', '😏', '😒', '🌙', '☀️', '🌸', '🎵',
+      '🌊', '⚡', '🔥', '💫', '✨', '💤', '🎉', '💖', '🫶', '💪',
+    ];
 
     const palette = [
       Color(0xFFF6C744), Color(0xFFF38B4A), Color(0xFFE57373),
@@ -155,88 +172,139 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text("Add a mood",
               style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.text, fontSize: 16)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  SizedBox(
-                    width: 56,
-                    child: TextField(
-                      controller: emojiCtrl,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 24),
-                      decoration: InputDecoration(
-                        hintText: "😊",
-                        hintStyle: const TextStyle(fontSize: 24),
-                        filled: true,
-                        fillColor: AppColors.background,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.border),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.border),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: pickedColor.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: pickedColor, width: 2),
+                      ),
+                      child: Center(
+                        child: Text(selectedEmoji, style: const TextStyle(fontSize: 26)),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: labelCtrl,
-                      style: const TextStyle(fontSize: 14, color: AppColors.text),
-                      decoration: InputDecoration(
-                        hintText: "Name",
-                        hintStyle: const TextStyle(color: AppColors.grey),
-                        filled: true,
-                        fillColor: AppColors.background,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.border),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: labelCtrl,
+                        style: const TextStyle(fontSize: 14, color: AppColors.text),
+                        decoration: InputDecoration(
+                          hintText: "Name",
+                          hintStyle: const TextStyle(color: AppColors.grey),
+                          filled: true,
+                          fillColor: AppColors.background,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.border),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  height: 130,
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
                   ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: palette.map((c) => GestureDetector(
-                  onTap: () => setLocal(() => pickedColor = c),
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: c,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: pickedColor == c ? AppColors.text : Colors.transparent,
-                        width: 2,
+                  child: Stack(
+                    children: [
+                      GridView.builder(
+                        padding: const EdgeInsets.all(6),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 6,
+                          mainAxisSpacing: 4,
+                          crossAxisSpacing: 4,
+                        ),
+                        itemCount: emojis.length,
+                        itemBuilder: (_, i) => GestureDetector(
+                          onTap: () => setLocal(() => selectedEmoji = emojis[i]),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: selectedEmoji == emojis[i]
+                                  ? pickedColor.withValues(alpha: 0.25)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              border: selectedEmoji == emojis[i]
+                                  ? Border.all(color: pickedColor.withValues(alpha: 0.6), width: 1.5)
+                                  : null,
+                            ),
+                            child: Center(
+                              child: Text(emojis[i], style: const TextStyle(fontSize: 20)),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: IgnorePointer(
+                          child: Container(
+                            height: 30,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  AppColors.background.withValues(alpha: 0),
+                                  AppColors.background.withValues(alpha: 0.92),
+                                ],
+                              ),
+                              borderRadius: const BorderRadius.only(
+                                bottomLeft: Radius.circular(12),
+                                bottomRight: Radius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: palette.map((c) => GestureDetector(
+                    onTap: () => setLocal(() => pickedColor = c),
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: c,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: pickedColor == c ? AppColors.text : Colors.transparent,
+                          width: 2,
+                        ),
                       ),
                     ),
-                  ),
-                )).toList(),
-              ),
-            ],
+                  )).toList(),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -245,13 +313,12 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
             ),
             TextButton(
               onPressed: () {
-                final emoji = emojiCtrl.text.trim();
                 final label = labelCtrl.text.trim();
-                if (emoji.isEmpty || label.isEmpty) return;
+                if (label.isEmpty) return;
                 final dupe = Moods.combined.any((m) =>
                     m.label.toLowerCase() == label.toLowerCase());
                 if (dupe) return;
-                Navigator.pop(ctx, Mood(label: label, emoji: emoji, color: pickedColor));
+                Navigator.pop(ctx, Mood(label: label, emoji: selectedEmoji, color: pickedColor));
               },
               child: const Text("Add",
                   style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
@@ -265,6 +332,38 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
     final uid = AuthService().currentUser?.uid;
     if (uid != null) await MoodService().addCustomMood(uid, mood);
     Moods.custom = [...Moods.custom, mood];
+    setState(() => _customMoods = List.from(Moods.custom));
+  }
+
+  void deleteCustomMood(Mood mood) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Delete mood",
+            style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.text, fontSize: 16)),
+        content: Text("Remove \"${mood.label}\"?",
+            style: const TextStyle(color: AppColors.grey, fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel", style: TextStyle(color: AppColors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Delete",
+                style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+    final uid = AuthService().currentUser?.uid;
+    if (uid != null) await MoodService().deleteCustomMood(uid, mood);
+    if (selectedMood == mood.label) setState(() => selectedMood = null);
+    Moods.custom = Moods.custom.where((m) => m.label != mood.label).toList();
     setState(() => _customMoods = List.from(Moods.custom));
   }
 
@@ -293,22 +392,25 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
           controller: controller,
           autofocus: true,
           maxLength: 20,
-          style: const TextStyle(color: AppColors.text),
+          style: const TextStyle(color: AppColors.text, fontSize: 14),
           decoration: InputDecoration(
-            hintText: "e.g. motivated, cozy...",
-            hintStyle: const TextStyle(color: AppColors.grey),
+            hintText: "e.g. school, travel, late_night...",
+            hintStyle: const TextStyle(color: AppColors.grey, fontSize: 13),
             filled: true,
             fillColor: AppColors.background,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            counterText: '',
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: AppColors.pink, width: 2),
             ),
           ),
@@ -333,6 +435,12 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         if (!myTags.contains(result)) myTags.add(result);
         tags.add(result);
       });
+      final uid = AuthService().currentUser?.uid;
+      if (uid != null) {
+        try {
+          await TagService().addCustomTag(uid, result);
+        } catch (_) {}
+      }
     }
   }
 
@@ -425,15 +533,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
-        backgroundColor: isError ? AppColors.red : const Color(0xFF4A7B5A),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+    showAnimatedSnackBar(context, message, isError: isError);
   }
 
   String get dateLabel {
@@ -483,9 +583,10 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                           onSelect: selectMood,
                           customMoods: _customMoods,
                           onAddMood: addCustomMood,
+                          onDeleteMood: deleteCustomMood,
+                          expanded: _moodExpanded,
+                          onExpand: () => setState(() => _moodExpanded = !_moodExpanded),
                         ),
-                        const SizedBox(height: 14),
-                        _noteSection(),
                         const SizedBox(height: 14),
                         TagsCard(
                           myTags: myTags,
@@ -495,6 +596,8 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                           onTag: toggleTag,
                           onAdd: addCustomTag,
                         ),
+                        const SizedBox(height: 14),
+                        _noteSection(),
                       ],
                     ),
                   ),
@@ -694,33 +797,50 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Today's note",
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.text)),
-          const SizedBox(height: 12),
-          TextField(
-            controller: noteController,
-            maxLines: 6,
-            style: const TextStyle(fontSize: 14, height: 1.6, color: AppColors.text),
-            decoration: InputDecoration(
-              hintText: "Write here...",
-              hintStyle: const TextStyle(color: AppColors.grey, fontSize: 14),
-              filled: true,
-              fillColor: AppColors.background,
-              contentPadding: const EdgeInsets.all(14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.pink, width: 2),
-              ),
+          GestureDetector(
+            onTap: () => setState(() => _noteExpanded = !_noteExpanded),
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              children: [
+                const Text("Today's note",
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.text)),
+                const Spacer(),
+                Icon(
+                  _noteExpanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.grey,
+                ),
+              ],
             ),
           ),
+          if (_noteExpanded) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: noteController,
+              maxLines: 6,
+              style: const TextStyle(fontSize: 14, height: 1.6, color: AppColors.text),
+              decoration: InputDecoration(
+                hintText: "Write here...",
+                hintStyle: const TextStyle(color: AppColors.grey, fontSize: 14),
+                filled: true,
+                fillColor: AppColors.background,
+                contentPadding: const EdgeInsets.all(14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.pink, width: 2),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -732,6 +852,9 @@ class MoodCard extends StatelessWidget {
   final ValueChanged<String> onSelect;
   final List<Mood> customMoods;
   final VoidCallback onAddMood;
+  final ValueChanged<Mood> onDeleteMood;
+  final bool expanded;
+  final VoidCallback onExpand;
 
   const MoodCard({
     super.key,
@@ -739,20 +862,22 @@ class MoodCard extends StatelessWidget {
     required this.onSelect,
     required this.customMoods,
     required this.onAddMood,
+    required this.onDeleteMood,
+    required this.expanded,
+    required this.onExpand,
   });
 
-  Widget _chip(Mood m, bool isSelected) {
+  Widget _chip(Mood m, bool isSelected, {bool deletable = false}) {
     return GestureDetector(
       onTap: () => onSelect(m.label),
+      onLongPress: deletable ? () => onDeleteMood(m) : null,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? m.color.withValues(alpha: 0.35) : AppColors.background,
+          color: isSelected
+              ? m.color.withValues(alpha: 0.28)
+              : AppColors.text.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? m.color : AppColors.border,
-            width: isSelected ? 2 : 1,
-          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -779,41 +904,58 @@ class MoodCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "How are you feeling?",
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.text,
+          GestureDetector(
+            onTap: onExpand,
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              children: [
+                const Text(
+                  "How are you feeling?",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  expanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.grey,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ...Moods.all.map((m) => _chip(m, selected == m.label)),
-              ...customMoods.map((m) => _chip(m, selected == m.label)),
-              GestureDetector(
-                onTap: onAddMood,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.lightGrey,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    "+ add",
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.grey,
-                      fontWeight: FontWeight.w400,
+          if (expanded) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ...Moods.all.map((m) => _chip(m, selected == m.label)),
+                ...customMoods.map((m) => _chip(m, selected == m.label, deletable: true)),
+                GestureDetector(
+                  onTap: onAddMood,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.lightGrey,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      "+ add",
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.grey,
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
