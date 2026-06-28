@@ -92,11 +92,3 @@ lyre/
 ├── pubspec.yaml
 └── .env                  (gitignored)
 ```
-
----
-
-## Links
-
-- [Design Prototype (Figma)](https://www.figma.com/design/0shqeBm2e1evmefJNNsKLg/LYRE-Design-Prototype?node-id=0-1&t=6UMk7Dr3pNRT5HA3-1)
-- [Walkthrough Video (Milestone 1)](https://drive.google.com/file/d/1F3NlkdM53wkxh6loYJN4w5plF0aAaLxa/view?usp=sharing)
-- [Project Log](https://docs.google.com/spreadsheets/d/1rLDhBnsf3d1k92-rT8nJCT8-4sXqbOeaQwM6hbZlJHc/edit?usp=sharing)
