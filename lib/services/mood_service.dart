@@ -20,6 +20,21 @@ class MoodService {
     )).toList();
   }
 
+  Future<void> deleteCustomMood(String uid, Mood mood) async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('entries')
+        .doc('_custom_moods')
+        .set({
+      'moods': FieldValue.arrayRemove([{
+        'label': mood.label,
+        'emoji': mood.emoji,
+        'colorValue': mood.color.toARGB32(),
+      }]),
+    }, SetOptions(merge: true));
+  }
+
   Future<void> addCustomMood(String uid, Mood mood) async {
     await _db
         .collection('users')
