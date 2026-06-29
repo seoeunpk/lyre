@@ -80,7 +80,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 child: CircularProgressIndicator(color: AppColors.primary));
           }
           final all = snapshot.data ?? const <JournalEntry>[];
-          final allTags = all.expand((e) => e.tags).toSet();
+          final allTags = <String>{};
+          for (final e in all) {
+            allTags.addAll(e.tags);
+          }
           final filtered = _applyFilters(all);
 
           return Column(
@@ -279,24 +282,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         color: AppColors.grey,
                         letterSpacing: 0.8)),
                 const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: Moods.combined
-                      .map((m) => _filterChip(
-                            label: "${m.emoji} ${m.label}",
-                            selected: localMoods.contains(m.label),
-                            color: m.color,
-                            onTap: () => setLocal(() {
-                              if (localMoods.contains(m.label)) {
-                                localMoods.remove(m.label);
-                              } else {
-                                localMoods.add(m.label);
-                              }
-                            }),
-                          ))
-                      .toList(),
-                ),
+                Builder(builder: (_) {
+                  final moodChips = <Widget>[];
+                  for (final m in Moods.combined) {
+                    moodChips.add(_filterChip(
+                      label: "${m.emoji} ${m.label}",
+                      selected: localMoods.contains(m.label),
+                      color: m.color,
+                      onTap: () => setLocal(() {
+                        if (localMoods.contains(m.label)) {
+                          localMoods.remove(m.label);
+                        } else {
+                          localMoods.add(m.label);
+                        }
+                      }),
+                    ));
+                  }
+                  return Wrap(spacing: 6, runSpacing: 6, children: moodChips);
+                }),
                 if (tags.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   const Text("TAGS",
@@ -306,19 +309,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           color: AppColors.grey,
                           letterSpacing: 0.8)),
                   const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: tags
-                        .map((t) => _filterChip(
-                              label: "#$t",
-                              selected: localTag == t,
-                              color: AppColors.pink,
-                              onTap: () => setLocal(() =>
-                                  localTag = localTag == t ? null : t),
-                            ))
-                        .toList(),
-                  ),
+                  Builder(builder: (_) {
+                    final tagChips = <Widget>[];
+                    for (final t in tags) {
+                      tagChips.add(_filterChip(
+                        label: "#$t",
+                        selected: localTag == t,
+                        color: AppColors.pink,
+                        onTap: () => setLocal(() =>
+                            localTag = localTag == t ? null : t),
+                      ));
+                    }
+                    return Wrap(spacing: 6, runSpacing: 6, children: tagChips);
+                  }),
                 ],
                 const SizedBox(height: 24),
                 SizedBox(
@@ -543,32 +546,33 @@ class EntryHistoryCard extends StatelessWidget {
             ],
             if (entry.tags.isNotEmpty) ...[
               const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: entry.tags
-                    .map((t) => Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.pink.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            "#$t",
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.text,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ))
-                    .toList(),
-              ),
+              _buildTagPills(entry.tags),
             ],
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildTagPills(List<String> tagList) {
+    final pills = <Widget>[];
+    for (final t in tagList) {
+      pills.add(Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.pink.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          "#$t",
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.text,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ));
+    }
+    return Wrap(spacing: 6, runSpacing: 6, children: pills);
   }
 }

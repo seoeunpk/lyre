@@ -27,7 +27,12 @@ class Moods {
 
   static List<Mood> custom = [];
 
-  static List<Mood> get combined => [...all, ...custom];
+  static List<Mood> get combined {
+    final result = <Mood>[];
+    result.addAll(all);
+    result.addAll(custom);
+    return result;
+  }
 
   static Mood? byLabel(String? label) {
     if (label == null || label.isEmpty) return null;

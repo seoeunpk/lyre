@@ -104,7 +104,9 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   }
 
   void onSpotifySearchChanged(String query) {
-    if (debounce?.isActive ?? false) debounce!.cancel();
+    if (debounce != null && debounce!.isActive) {
+      debounce!.cancel();
+    }
     debounce = Timer(const Duration(milliseconds: 500), () async {
       if (query.trim().isEmpty) {
         setState(() {
@@ -284,25 +286,27 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: palette.map((c) => GestureDetector(
-                    onTap: () => setLocal(() => pickedColor = c),
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: c,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: pickedColor == c ? AppColors.text : Colors.transparent,
-                          width: 2,
+                Builder(builder: (_) {
+                  final colorDots = <Widget>[];
+                  for (final c in palette) {
+                    colorDots.add(GestureDetector(
+                      onTap: () => setLocal(() => pickedColor = c),
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: c,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: pickedColor == c ? AppColors.text : Colors.transparent,
+                            width: 2,
+                          ),
                         ),
                       ),
-                    ),
-                  )).toList(),
-                ),
+                    ));
+                  }
+                  return Wrap(spacing: 8, runSpacing: 8, children: colorDots);
+                }),
               ],
             ),
           ),
@@ -315,8 +319,13 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
               onPressed: () {
                 final label = labelCtrl.text.trim();
                 if (label.isEmpty) return;
-                final dupe = Moods.combined.any((m) =>
-                    m.label.toLowerCase() == label.toLowerCase());
+                bool dupe = false;
+                for (final m in Moods.combined) {
+                  if (m.label.toLowerCase() == label.toLowerCase()) {
+                    dupe = true;
+                    break;
+                  }
+                }
                 if (dupe) return;
                 Navigator.pop(ctx, Mood(label: label, emoji: selectedEmoji, color: pickedColor));
               },
@@ -331,7 +340,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
     if (mood == null || !mounted) return;
     final uid = AuthService().currentUser?.uid;
     if (uid != null) await MoodService().addCustomMood(uid, mood);
-    Moods.custom = [...Moods.custom, mood];
+    Moods.custom = List.from(Moods.custom)..add(mood);
     setState(() => _customMoods = List.from(Moods.custom));
   }
 
@@ -363,7 +372,11 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
     final uid = AuthService().currentUser?.uid;
     if (uid != null) await MoodService().deleteCustomMood(uid, mood);
     if (selectedMood == mood.label) setState(() => selectedMood = null);
-    Moods.custom = Moods.custom.where((m) => m.label != mood.label).toList();
+    final remaining = <Mood>[];
+    for (final m in Moods.custom) {
+      if (m.label != mood.label) remaining.add(m);
+    }
+    Moods.custom = remaining;
     setState(() => _customMoods = List.from(Moods.custom));
   }
 
@@ -530,6 +543,42 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
       _showSnackBar("Failed to save. Try again.", isError: true);
       setState(() => saving = false);
     }
+  }
+
+  List<Widget> _buildTrackTiles() {
+    final tiles = <Widget>[];
+    for (final track in results) {
+      tiles.add(ListTile(
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+        leading: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppColors.border,
+            borderRadius: BorderRadius.circular(8),
+            image: track.albumArtUrl.isNotEmpty
+                ? DecorationImage(
+                    image: NetworkImage(track.albumArtUrl),
+                    fit: BoxFit.cover)
+                : null,
+          ),
+        ),
+        title: Text(track.trackName,
+            style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: AppColors.text),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis),
+        subtitle: Text(track.artistName,
+            style: const TextStyle(color: AppColors.grey, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis),
+        onTap: () => selectSong(track),
+      ));
+    }
+    return tiles;
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -730,35 +779,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                       border: Border.all(color: AppColors.border),
                     ),
                     child: Column(
-                      children: results.map((track) => ListTile(
-                        dense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                        leading: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: AppColors.border,
-                            borderRadius: BorderRadius.circular(8),
-                            image: track.albumArtUrl.isNotEmpty
-                                ? DecorationImage(
-                                    image: NetworkImage(track.albumArtUrl),
-                                    fit: BoxFit.cover)
-                                : null,
-                          ),
-                        ),
-                        title: Text(track.trackName,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                                color: AppColors.text),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        subtitle: Text(track.artistName,
-                            style: const TextStyle(color: AppColors.grey, fontSize: 12),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        onTap: () => selectSong(track),
-                      )).toList(),
+                      children: _buildTrackTiles(),
                     ),
                   )
                 else if (searchCtrl.text.isNotEmpty)
@@ -932,33 +953,45 @@ class MoodCard extends StatelessWidget {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: [
-                ...Moods.all.map((m) => _chip(m, selected == m.label)),
-                ...customMoods.map((m) => _chip(m, selected == m.label, deletable: true)),
-                GestureDetector(
-                  onTap: onAddMood,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.lightGrey,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      "+ add",
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.grey,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              children: _buildMoodChips(selected, customMoods, onAddMood),
             ),
           ],
         ],
       ),
     );
+  }
+
+  List<Widget> _buildMoodChips(
+    String? selected,
+    List<Mood> customMoods,
+    VoidCallback onAddMood,
+  ) {
+    final chips = <Widget>[];
+    for (final m in Moods.all) {
+      chips.add(_chip(m, selected == m.label));
+    }
+    for (final m in customMoods) {
+      chips.add(_chip(m, selected == m.label, deletable: true));
+    }
+    chips.add(GestureDetector(
+      onTap: onAddMood,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.lightGrey,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Text(
+          "+ add",
+          style: TextStyle(
+            fontSize: 13,
+            color: AppColors.grey,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ),
+    ));
+    return chips;
   }
 }
 
@@ -1014,19 +1047,25 @@ class TagsCard extends StatelessWidget {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: [
-                ...myTags.map((label) => TagChip(
-                      label: label,
-                      selected: tags.contains(label),
-                      onTap: () => onTag(label),
-                    )),
-                AddTagChip(onTap: onAdd),
-              ],
+              children: _buildTagChips(),
             ),
           ],
         ],
       ),
     );
+  }
+
+  List<Widget> _buildTagChips() {
+    final chips = <Widget>[];
+    for (final label in myTags) {
+      chips.add(TagChip(
+        label: label,
+        selected: tags.contains(label),
+        onTap: () => onTag(label),
+      ));
+    }
+    chips.add(AddTagChip(onTap: onAdd));
+    return chips;
   }
 }
 

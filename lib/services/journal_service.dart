@@ -43,6 +43,12 @@ class JournalService {
         .collection('entries')
         .orderBy('date', descending: true)
         .snapshots()
-        .map((s) => s.docs.map((d) => JournalEntry.fromMap(d.data())).toList());
+        .map((snapshot) {
+          final entries = <JournalEntry>[];
+          for (final doc in snapshot.docs) {
+            entries.add(JournalEntry.fromMap(doc.data()));
+          }
+          return entries;
+        });
   }
 }

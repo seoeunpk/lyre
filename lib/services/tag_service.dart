@@ -11,7 +11,11 @@ class TagService {
         .doc('_custom_tags')
         .get();
     final list = doc.data()?['tags'] as List? ?? [];
-    return list.cast<String>();
+    final tags = <String>[];
+    for (final item in list) {
+      tags.add(item as String);
+    }
+    return tags;
   }
 
   Future<void> addCustomTag(String uid, String tag) async {

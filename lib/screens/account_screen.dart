@@ -232,29 +232,29 @@ class _AccountScreenState extends State<AccountScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: palette
-                      .map((c) => GestureDetector(
-                            onTap: () => setLocal(() => pickedColor = c),
-                            child: Container(
-                              width: 28,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                color: c,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: pickedColor == c
-                                      ? AppColors.text
-                                      : Colors.transparent,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                          ))
-                      .toList(),
-                ),
+                Builder(builder: (_) {
+                  final colorDots = <Widget>[];
+                  for (final c in palette) {
+                    colorDots.add(GestureDetector(
+                      onTap: () => setLocal(() => pickedColor = c),
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: c,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: pickedColor == c
+                                ? AppColors.text
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ));
+                  }
+                  return Wrap(spacing: 8, runSpacing: 8, children: colorDots);
+                }),
               ],
             ),
           ),
@@ -268,13 +268,23 @@ class _AccountScreenState extends State<AccountScreen> {
                 final label = labelCtrl.text.trim();
                 if (label.isEmpty) return;
                 if (!isEdit) {
-                  final dupe = Moods.combined.any(
-                      (m) => m.label.toLowerCase() == label.toLowerCase());
+                  bool dupe = false;
+                  for (final m in Moods.combined) {
+                    if (m.label.toLowerCase() == label.toLowerCase()) {
+                      dupe = true;
+                      break;
+                    }
+                  }
                   if (dupe) return;
                 } else {
-                  final dupe = Moods.combined.any((m) =>
-                      m.label.toLowerCase() == label.toLowerCase() &&
-                      m.label != existing!.label);
+                  bool dupe = false;
+                  for (final m in Moods.combined) {
+                    if (m.label.toLowerCase() == label.toLowerCase() &&
+                        m.label != existing!.label) {
+                      dupe = true;
+                      break;
+                    }
+                  }
                   if (dupe) return;
                 }
                 Navigator.pop(
@@ -302,11 +312,9 @@ class _AccountScreenState extends State<AccountScreen> {
       await MoodService().addCustomMood(uid, updated);
       final idx = Moods.custom.indexWhere((m) => m.label == original.label);
       if (idx >= 0) {
-        Moods.custom = [
-          ...Moods.custom.sublist(0, idx),
-          updated,
-          ...Moods.custom.sublist(idx + 1),
-        ];
+        final newList = List<Mood>.from(Moods.custom);
+        newList[idx] = updated;
+        Moods.custom = newList;
       }
       if (mounted) setState(() => _customMoods = List.from(Moods.custom));
     } catch (_) {
@@ -343,7 +351,11 @@ class _AccountScreenState extends State<AccountScreen> {
     if (uid == null) return;
     try {
       await MoodService().deleteCustomMood(uid, mood);
-      Moods.custom = Moods.custom.where((m) => m.label != mood.label).toList();
+      final remaining = <Mood>[];
+    for (final m in Moods.custom) {
+      if (m.label != mood.label) remaining.add(m);
+    }
+    Moods.custom = remaining;
       if (mounted) setState(() => _customMoods = List.from(Moods.custom));
     } catch (_) {
       if (mounted) showAnimatedSnackBar(context, "Failed to delete mood.", isError: true);
@@ -364,7 +376,7 @@ class _AccountScreenState extends State<AccountScreen> {
     try {
       await TagService().addCustomTag(uid, tag);
       setState(() {
-        _customTags = [..._customTags, tag];
+        _customTags = List.from(_customTags)..add(tag);
         _tagCtrl.clear();
       });
     } catch (_) {
@@ -377,7 +389,11 @@ class _AccountScreenState extends State<AccountScreen> {
     if (uid == null) return;
     try {
       await TagService().deleteCustomTag(uid, tag);
-      setState(() => _customTags = _customTags.where((t) => t != tag).toList());
+      final newTags = <String>[];
+      for (final t in _customTags) {
+        if (t != tag) newTags.add(t);
+      }
+      setState(() => _customTags = newTags);
     } catch (_) {
       if (mounted) showAnimatedSnackBar(context, "Failed to delete tag.", isError: true);
     }
@@ -421,15 +437,16 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Widget _profileSection() {
     final nameText = _nameCtrl.text.trim();
-    final initials = nameText.isNotEmpty
-        ? nameText
-            .split(' ')
-            .where((w) => w.isNotEmpty)
-            .map((w) => w[0])
-            .take(2)
-            .join()
-            .toUpperCase()
-        : '?';
+    String initials = '?';
+    if (nameText.isNotEmpty) {
+      String letters = '';
+      for (final word in nameText.split(' ')) {
+        if (word.isNotEmpty && letters.length < 2) {
+          letters += word[0];
+        }
+      }
+      initials = letters.toUpperCase();
+    }
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -557,9 +574,8 @@ class _AccountScreenState extends State<AccountScreen> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
-        children: _customMoods.asMap().entries.map((e) {
-          final i = e.key;
-          final mood = e.value;
+        children: List.generate(_customMoods.length, (i) {
+          final mood = _customMoods[i];
           final isLast = i == _customMoods.length - 1;
           return Column(
             children: [
@@ -629,7 +645,7 @@ class _AccountScreenState extends State<AccountScreen> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _customTags.map(_tagChip).toList(),
+              children: _buildTagChips(),
             ),
             const SizedBox(height: 14),
             const Divider(height: 1, color: AppColors.border),
@@ -691,6 +707,14 @@ class _AccountScreenState extends State<AccountScreen> {
         ],
       ),
     );
+  }
+
+  List<Widget> _buildTagChips() {
+    final chips = <Widget>[];
+    for (final tag in _customTags) {
+      chips.add(_tagChip(tag));
+    }
+    return chips;
   }
 
   Widget _tagChip(String tag) {

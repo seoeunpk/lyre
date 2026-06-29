@@ -129,24 +129,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _weekdayLabels() {
     const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    final labelWidgets = <Widget>[];
+    for (final l in labels) {
+      labelWidgets.add(Expanded(
+        child: Center(
+          child: Text(
+            l,
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ));
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        children: labels
-            .map((l) => Expanded(
-                  child: Center(
-                    child: Text(
-                      l,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.grey,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ))
-            .toList(),
-      ),
+      child: Row(children: labelWidgets),
     );
   }
 

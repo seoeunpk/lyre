@@ -32,14 +32,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String get _initials {
     if (_name.isEmpty || _name == 'No name') return '?';
-    return _name
-        .trim()
-        .split(' ')
-        .where((w) => w.isNotEmpty)
-        .map((w) => w[0])
-        .take(2)
-        .join()
-        .toUpperCase();
+    final words = _name.trim().split(' ');
+    String result = '';
+    for (final word in words) {
+      if (word.isNotEmpty && result.length < 2) {
+        result += word[0];
+      }
+    }
+    return result.toUpperCase();
   }
 
   @override

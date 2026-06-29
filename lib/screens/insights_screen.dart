@@ -119,17 +119,7 @@ class _InsightsBody extends StatelessWidget {
             title: "Mood trends",
             child: moodCounts.isEmpty
                 ? const _NoData()
-                : Column(
-                    children: Moods.all
-                        .where((m) => (moodCounts[m.label] ?? 0) > 0)
-                        .map((m) => _BarRow(
-                              label: "${m.emoji} ${m.label}",
-                              count: moodCounts[m.label]!,
-                              total: entries.length,
-                              color: m.color,
-                            ))
-                        .toList(),
-                  ),
+                : _buildMoodBars(moodCounts, entries.length),
           ),
           const SizedBox(height: 20),
 
@@ -149,38 +139,63 @@ class _InsightsBody extends StatelessWidget {
             title: "Most-used tags",
             child: tagCounts.isEmpty
                 ? const _NoData()
-                : Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: (tagCounts.entries.toList()
-                          ..sort((a, b) => b.value.compareTo(a.value)))
-                        .map((e) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 7),
-                              decoration: BoxDecoration(
-                                color: AppColors.pink.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                "#${e.key}  ${e.value}",
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.text,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ))
-                        .toList(),
-                  ),
+                : _buildTagWrap(tagCounts),
           ),
         ],
       ),
     );
   }
 
+  static Widget _buildMoodBars(Map<String, int> moodCounts, int total) {
+    final bars = <Widget>[];
+    for (final m in Moods.all) {
+      if ((moodCounts[m.label] ?? 0) > 0) {
+        bars.add(_BarRow(
+          label: "${m.emoji} ${m.label}",
+          count: moodCounts[m.label]!,
+          total: total,
+          color: m.color,
+        ));
+      }
+    }
+    return Column(children: bars);
+  }
+
+  static Widget _buildTagWrap(Map<String, int> tagCounts) {
+    final sorted = tagCounts.entries.toList();
+    sorted.sort((a, b) => b.value.compareTo(a.value));
+    final chips = <Widget>[];
+    for (final tag in sorted) {
+      chips.add(Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: AppColors.pink.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          "#${tag.key}  ${tag.value}",
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.text,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ));
+    }
+    return Wrap(spacing: 8, runSpacing: 8, children: chips);
+  }
+
   static String? _topKey(Map<String, int> counts) {
     if (counts.isEmpty) return null;
-    return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    String? topKey;
+    int topCount = 0;
+    for (final entry in counts.entries) {
+      if (entry.value >= topCount) {
+        topCount = entry.value;
+        topKey = entry.key;
+      }
+    }
+    return topKey;
   }
 
   static int _currentStreak(List<JournalEntry> entries) {
@@ -330,8 +345,8 @@ class _RankedList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (counts.isEmpty) return _NoData(label: emptyLabel);
-    final sorted = counts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final sorted = counts.entries.toList();
+    sorted.sort((a, b) => b.value.compareTo(a.value));
     final top = sorted.take(5).toList();
 
     return Column(

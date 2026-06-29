@@ -73,15 +73,19 @@ class SpotifyService {
     final data = jsonDecode(response.body);
     final items = data['tracks']['items'] as List<dynamic>;
 
-    return items.map((item) {
+    final tracks = <SpotifyTrack>[];
+    for (final item in items) {
       final images = (item['album']?['images'] as List?) ?? [];
       final artists = item['artists'] as List;
-      return SpotifyTrack(
+      final artistName = artists.isNotEmpty ? artists[0]['name'] as String : '';
+      final albumArtUrl = images.isNotEmpty ? images[0]['url'] as String : '';
+      tracks.add(SpotifyTrack(
         trackId: item['id'] as String,
         trackName: item['name'] as String,
-        artistName: artists.isNotEmpty ? artists[0]['name'] as String : '',
-        albumArtUrl: images.isNotEmpty ? images[0]['url'] as String : '',
-      );
-    }).toList();
+        artistName: artistName,
+        albumArtUrl: albumArtUrl,
+      ));
+    }
+    return tracks;
   }
 }
