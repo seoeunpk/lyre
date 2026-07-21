@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 class SpotifyTrack {
@@ -17,70 +16,30 @@ class SpotifyTrack {
 }
 
 class SpotifyService {
-  static String? _accessToken;
-  static DateTime? _tokenExpiry;
-
-  Future<void> _authenticate() async {
-    if (_accessToken != null &&
-        _tokenExpiry != null &&
-        DateTime.now().isBefore(_tokenExpiry!)) {
-      return;
-    }
-
-    final clientId = dotenv.env['SPOTIFY_CLIENT_ID'] ?? '';
-    final clientSecret = dotenv.env['SPOTIFY_CLIENT_SECRET'] ?? '';
-
-    final credentials = base64Encode(utf8.encode('$clientId:$clientSecret'));
-
-    final response = await http.post(
-      Uri.parse('https://accounts.spotify.com/api/token'),
-      headers: {
-        'Authorization': 'Basic $credentials',
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: {'grant_type': 'client_credentials'},
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception('spotify auth failed ${response.statusCode}');
-    }
-
-    final data = jsonDecode(response.body);
-    _accessToken = data['access_token'] as String;
-    _tokenExpiry = DateTime.now().add(const Duration(seconds: 3500));
-  }
+  static final _searchUrl = Uri.parse(
+    'https://lyre-spotify-search.yawenchua.workers.dev/search',
+  );
 
   Future<List<SpotifyTrack>> searchTracks(String query) async {
-    await _authenticate();
-
-    final uri = Uri.parse('https://api.spotify.com/v1/search').replace(
-      queryParameters: {
-        'q': query,
-        'type': 'track',
-        'limit': '10',
-      },
-    );
-
-    final response = await http.get(
-      uri,
-      headers: {'Authorization': 'Bearer $_accessToken'},
+    final response = await http.post(
+      _searchUrl,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'query': query}),
     );
 
     if (response.statusCode != 200) {
-      throw Exception('search failed: ${response.statusCode}');
+      throw Exception('Could not search Spotify right now.');
     }
 
-    final data = jsonDecode(response.body);
-    final items = data['tracks']['items'] as List<dynamic>;
-
-    return items.map((item) {
-      final images = (item['album']?['images'] as List?) ?? [];
-      final artists = item['artists'] as List;
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final tracks = data['tracks'] as List? ?? [];
+    return tracks.map((track) {
+      final map = Map<String, dynamic>.from(track as Map);
       return SpotifyTrack(
-        trackId: item['id'] as String,
-        trackName: item['name'] as String,
-        artistName: artists.isNotEmpty ? artists[0]['name'] as String : '',
-        albumArtUrl: images.isNotEmpty ? images[0]['url'] as String : '',
+        trackId: map['trackId'] as String? ?? '',
+        trackName: map['trackName'] as String? ?? '',
+        artistName: map['artistName'] as String? ?? '',
+        albumArtUrl: map['albumArtUrl'] as String? ?? '',
       );
     }).toList();
   }

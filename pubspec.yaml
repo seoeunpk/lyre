@@ -13,7 +13,6 @@ dependencies:
   firebase_core: ^4.0.0
   firebase_auth: ^6.0.0
   cloud_firestore: ^6.0.0
-  flutter_dotenv: ^5.2.1
   http: ^1.2.2
 
 dev_dependencies:
@@ -23,6 +22,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-  assets:
-    - .env
