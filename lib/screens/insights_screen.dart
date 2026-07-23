@@ -82,7 +82,7 @@ class _InsightsBody extends StatelessWidget {
           artistCounts[s.artistName] = (artistCounts[s.artistName] ?? 0) + 1;
         }
         if (s.trackName.isNotEmpty) {
-          final key = "${s.trackName} — ${s.artistName}";
+          final key = "${s.trackName} - ${s.artistName}";
           songCounts[key] = (songCounts[key] ?? 0) + 1;
         }
       }
@@ -107,8 +107,8 @@ class _InsightsBody extends StatelessWidget {
               const SizedBox(width: 12),
               _StatTile(
                 value: topMood != null
-                    ? (Moods.byLabel(topMood)?.emoji ?? "—")
-                    : "—",
+                    ? (Moods.byLabel(topMood)?.emoji ?? "-")
+                    : "-",
                 label: "Top mood",
               ),
             ],

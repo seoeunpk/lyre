@@ -1,15 +1,20 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../models/friendship.dart';
 import '../models/journal_entry.dart';
 import '../models/mood.dart';
 import '../services/auth_service.dart';
 import '../services/journal_service.dart';
+import '../services/sharing_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/animated_snackbar.dart';
+import 'connect_screen.dart';
 import 'history_screen.dart';
 import 'insights_screen.dart';
 import 'new_entry_screen.dart';
 import 'profile_screen.dart';
 import '../services/mood_service.dart';
+import '../services/friend_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,6 +27,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final _journal = JournalService();
   DateTime month = DateTime.now();
   final DateTime today = DateTime.now();
+  StreamSubscription<List<Friendship>>? _friendshipSub;
+  List<Friendship> _friendships = [];
+  Set<String> _autoSharedFriendshipIds = {};
 
   String? get _uid => AuthService().currentUser?.uid;
 
@@ -29,6 +37,14 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadCustomMoods();
+    _ensureFriendProfile();
+    _watchFriendships();
+  }
+
+  @override
+  void dispose() {
+    _friendshipSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadCustomMoods() async {
@@ -36,6 +52,36 @@ class _HomeScreenState extends State<HomeScreen> {
     if (uid == null) return;
     final moods = await MoodService().getCustomMoods(uid);
     Moods.custom = moods;
+  }
+
+  Future<void> _ensureFriendProfile() async {
+    final user = AuthService().currentUser;
+    if (user == null) return;
+    final name = user.displayName?.trim();
+    try {
+      await FriendService()
+          .ensureProfile(user.uid, (name?.isNotEmpty ?? false) ? name! : 'LYRE user');
+    } catch (_) {}
+  }
+
+  /// Single subscription driving both the social-tab pending-request badge
+  /// and the default-sharing check below, instead of two separate listeners
+  /// on the same friendships query.
+  void _watchFriendships() {
+    final uid = _uid;
+    if (uid == null) return;
+    _friendshipSub = FriendService().friendshipsFor(uid).listen((friendships) {
+      if (mounted) setState(() => _friendships = friendships);
+
+      final accepted = friendships.where((f) => f.isAccepted).toList();
+      final acceptedIds = accepted.map((f) => f.id).toSet();
+      // Skip the Firestore round-trip in ensureDefaultSharing when this tick
+      // didn't introduce any newly-accepted friendship (e.g. it fired because
+      // of an unrelated pending request).
+      if (acceptedIds.difference(_autoSharedFriendshipIds).isEmpty) return;
+      _autoSharedFriendshipIds = acceptedIds;
+      SharingService().ensureDefaultSharing(uid, accepted).catchError((_) {});
+    });
   }
 
   void openProfile() {
@@ -66,11 +112,20 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void openSocial() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ConnectScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       bottomNavigationBar: _bottomBar(),
+      floatingActionButton: _newEntryButton(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: SafeArea(
         child: StreamBuilder<List<JournalEntry>>(
           stream: _uid == null ? null : _journal.getEntries(_uid!),
@@ -231,6 +286,71 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _newEntryButton() {
+    return GestureDetector(
+      onTap: () => openEntry(today),
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.text.withValues(alpha: 0.18),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: const Center(
+          child: Text("+",
+              style: TextStyle(
+                  fontSize: 28,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w400)),
+        ),
+      ),
+    );
+  }
+
+  Widget _socialTabButton() {
+    final uid = _uid;
+    final pendingCount = _friendships
+        .where((f) => f.isPending && f.requestedBy != uid)
+        .length;
+    return IconButton(
+      onPressed: openSocial,
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(Icons.people_alt_rounded, color: AppColors.grey),
+          if (pendingCount > 0)
+            Positioned(
+              right: -4,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: const BoxDecoration(
+                  color: AppColors.red,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                child: Text(
+                  "$pendingCount",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _bottomBar() {
     return BottomAppBar(
       color: AppColors.surface,
@@ -252,35 +372,11 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: openHistory,
               icon: const Icon(Icons.history_rounded, color: AppColors.grey),
             ),
-            GestureDetector(
-              onTap: () => openEntry(today),
-              child: Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.text.withValues(alpha: 0.18),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Text("+",
-                      style: TextStyle(
-                          fontSize: 28,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w400)),
-                ),
-              ),
-            ),
             IconButton(
               onPressed: openInsights,
               icon: const Icon(Icons.bar_chart_rounded, color: AppColors.grey),
             ),
+            _socialTabButton(),
             IconButton(
               onPressed: openProfile,
               icon: const Icon(Icons.person_outline_rounded,

@@ -4,6 +4,7 @@ import '../models/mood.dart';
 import '../services/auth_service.dart';
 import '../services/journal_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/field_decoration.dart';
 import 'new_entry_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -132,10 +133,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
               focusNode: _searchFocus,
               onChanged: (v) => setState(() => _keyword = v.trim()),
               style: const TextStyle(fontSize: 14, color: AppColors.text),
-              decoration: InputDecoration(
+              decoration: appFieldDecoration(
                 hintText: "Search notes, songs, tags...",
-                hintStyle:
-                    const TextStyle(color: AppColors.grey, fontSize: 13),
+                hintFontSize: 13,
+                radius: 14,
+                fillColor: AppColors.surface,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 12),
                 prefixIcon: const Icon(Icons.search_rounded,
                     color: AppColors.grey, size: 20),
                 suffixIcon: _keyword.isNotEmpty
@@ -148,23 +152,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         },
                       )
                     : null,
-                filled: true,
-                fillColor: AppColors.surface,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: AppColors.primary, width: 2),
-                ),
               ),
             ),
           ),
@@ -459,35 +446,13 @@ class EntryHistoryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text(
-                  _dateLabel,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
-                  ),
-                ),
-                const Spacer(),
-                if (mood != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: mood.color.withValues(alpha: 0.28),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      "${mood.emoji} ${mood.label}",
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.text,
-                      ),
-                    ),
-                  ),
-              ],
+            Text(
+              _dateLabel,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+              ),
             ),
             if (entry.song != null) ...[
               const SizedBox(height: 10),
@@ -544,9 +509,9 @@ class EntryHistoryCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ],
-            if (entry.tags.isNotEmpty) ...[
+            if (mood != null || entry.tags.isNotEmpty) ...[
               const SizedBox(height: 10),
-              _buildTagPills(entry.tags),
+              _buildTagPills(entry.tags, mood),
             ],
           ],
         ),
@@ -554,8 +519,25 @@ class EntryHistoryCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTagPills(List<String> tagList) {
+  Widget _buildTagPills(List<String> tagList, Mood? mood) {
     final pills = <Widget>[];
+    if (mood != null) {
+      pills.add(Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: mood.color.withValues(alpha: 0.28),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          "${mood.emoji} ${mood.label}",
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AppColors.text,
+          ),
+        ),
+      ));
+    }
     for (final t in tagList) {
       pills.add(Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

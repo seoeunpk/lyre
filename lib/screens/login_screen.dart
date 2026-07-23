@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/field_decoration.dart';
 import 'register_screen.dart';
 import 'home_screen.dart';
 
@@ -77,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
                   style: const TextStyle(color: AppColors.text, fontSize: 15),
-                  decoration: _inputDecoration(label: "Email"),
+                  decoration: authFieldDecoration("Email"),
                 ),
                 const SizedBox(height: 14),
 
@@ -85,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: passwordController,
                   obscureText: true,
                   style: const TextStyle(color: AppColors.text, fontSize: 15),
-                  decoration: _inputDecoration(label: "Password"),
+                  decoration: authFieldDecoration("Password"),
                   onSubmitted: (_) => login(),
                 ),
 
@@ -159,27 +160,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration({required String label}) {
-    return InputDecoration(
-      hintText: label,
-      hintStyle: const TextStyle(color: AppColors.grey),
-      filled: true,
-      fillColor: AppColors.lightGrey,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: AppColors.pink, width: 2),
       ),
     );
   }

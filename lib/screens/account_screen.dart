@@ -5,6 +5,8 @@ import '../services/mood_service.dart';
 import '../services/tag_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/animated_snackbar.dart';
+import '../utils/field_decoration.dart';
+import '../widgets/avatar_circle.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -138,28 +140,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       child: TextField(
                         controller: labelCtrl,
                         style: const TextStyle(fontSize: 14, color: AppColors.text),
-                        decoration: InputDecoration(
-                          hintText: "Name",
-                          hintStyle: const TextStyle(color: AppColors.grey),
-                          filled: true,
-                          fillColor: AppColors.background,
-                          isDense: true,
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.border),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: AppColors.primary, width: 2),
-                          ),
-                        ),
+                        decoration: appFieldDecoration(hintText: "Name"),
                       ),
                     ),
                   ],
@@ -352,10 +333,10 @@ class _AccountScreenState extends State<AccountScreen> {
     try {
       await MoodService().deleteCustomMood(uid, mood);
       final remaining = <Mood>[];
-    for (final m in Moods.custom) {
-      if (m.label != mood.label) remaining.add(m);
-    }
-    Moods.custom = remaining;
+      for (final m in Moods.custom) {
+        if (m.label != mood.label) remaining.add(m);
+      }
+      Moods.custom = remaining;
       if (mounted) setState(() => _customMoods = List.from(Moods.custom));
     } catch (_) {
       if (mounted) showAnimatedSnackBar(context, "Failed to delete mood.", isError: true);
@@ -437,16 +418,6 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Widget _profileSection() {
     final nameText = _nameCtrl.text.trim();
-    String initials = '?';
-    if (nameText.isNotEmpty) {
-      String letters = '';
-      for (final word in nameText.split(' ')) {
-        if (word.isNotEmpty && letters.length < 2) {
-          letters += word[0];
-        }
-      }
-      initials = letters.toUpperCase();
-    }
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -456,24 +427,7 @@ class _AccountScreenState extends State<AccountScreen> {
       ),
       child: Column(
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: const BoxDecoration(
-              color: AppColors.lightGrey,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.grey,
-                ),
-              ),
-            ),
-          ),
+          AvatarCircle(id: _uid ?? nameText, name: nameText, size: 80),
           const SizedBox(height: 20),
           Row(
             children: [
@@ -481,28 +435,10 @@ class _AccountScreenState extends State<AccountScreen> {
                 child: TextField(
                   controller: _nameCtrl,
                   style: const TextStyle(fontSize: 14, color: AppColors.text),
-                  decoration: InputDecoration(
+                  decoration: appFieldDecoration(
                     labelText: "Display name",
-                    labelStyle:
-                        const TextStyle(color: AppColors.grey, fontSize: 13),
-                    filled: true,
-                    fillColor: AppColors.background,
-                    isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: AppColors.primary, width: 2),
-                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
                   ),
                 ),
               ),
@@ -658,29 +594,10 @@ class _AccountScreenState extends State<AccountScreen> {
                   controller: _tagCtrl,
                   style: const TextStyle(fontSize: 14, color: AppColors.text),
                   onSubmitted: (_) => _addCustomTag(),
-                  decoration: InputDecoration(
+                  decoration: appFieldDecoration(
                     hintText: "New tag...",
-                    hintStyle:
-                        const TextStyle(color: AppColors.grey, fontSize: 13),
-                    filled: true,
-                    fillColor: AppColors.background,
-                    isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    hintFontSize: 13,
                     counterText: '',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: AppColors.primary, width: 2),
-                    ),
                   ),
                 ),
               ),
