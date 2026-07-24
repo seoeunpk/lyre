@@ -20,8 +20,12 @@ class SpotifyService {
     'https://lyre-spotify-search.yawenchua.workers.dev/search',
   );
 
+  SpotifyService({http.Client? client}) : _client = client ?? http.Client();
+
+  final http.Client _client;
+
   Future<List<SpotifyTrack>> searchTracks(String query) async {
-    final response = await http.post(
+    final response = await _client.post(
       _searchUrl,
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'query': query}),

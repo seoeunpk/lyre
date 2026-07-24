@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/auth_validation.dart';
 import '../utils/field_decoration.dart';
 import 'home_screen.dart';
 
@@ -28,25 +29,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  String? _validatePassword(String password) {
-    if (password.length < 6) return "Password must be at least 6 characters.";
-    if (!RegExp(r'^[a-zA-Z0-9]+$').hasMatch(password)) {
-      return "Letters and numbers only.";
-    }
-    if (!RegExp(r'[a-zA-Z]').hasMatch(password)) {
-      return "Needs at least one letter.";
-    }
-    if (!RegExp(r'[0-9]').hasMatch(password)) {
-      return "Needs at least one number.";
-    }
-    return null;
-  }
-
   void register() async {
     final password = passwordController.text;
     final confirm = confirmPasswordController.text;
 
-    final err = _validatePassword(password);
+    final err = validatePassword(password);
     if (err != null) {
       setState(() => errorMessage = err);
       return;
@@ -110,15 +97,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-
-
               TextField(
                 controller: nameController,
                 style: const TextStyle(color: AppColors.text, fontSize: 15),
                 decoration: authFieldDecoration("Name"),
               ),
               const SizedBox(height: 14),
-
               TextField(
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -126,7 +110,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 decoration: authFieldDecoration("Email"),
               ),
               const SizedBox(height: 14),
-
               TextField(
                 controller: passwordController,
                 obscureText: true,
@@ -134,7 +117,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 decoration: authFieldDecoration("Password"),
               ),
               const SizedBox(height: 14),
-
               TextField(
                 controller: confirmPasswordController,
                 obscureText: true,
@@ -150,9 +132,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   style: const TextStyle(color: AppColors.red, fontSize: 13),
                 ),
               ],
-
               const SizedBox(height: 24),
-
               ElevatedButton(
                 onPressed: loading ? null : register,
                 style: ElevatedButton.styleFrom(
@@ -175,10 +155,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       )
                     : const Text(
                         "Create Account",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700),
                       ),
               ),
-
               const SizedBox(height: 24),
             ],
           ),

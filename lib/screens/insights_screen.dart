@@ -60,7 +60,8 @@ class _InsightsContentState extends State<_InsightsContent> {
     final topMood = getTopItem(moods);
     final topArtist = getTopItem(artists);
     final activeDays = shownEntries.map((e) => dateKey(e.date)).toSet().length;
-    final daysLabel = selectedDays == 0 ? 'all time' : 'last $selectedDays days';
+    final daysLabel =
+        selectedDays == 0 ? 'all time' : 'last $selectedDays days';
     final connections = getConnections(shownEntries);
     final comparison = compareWithPreviousPeriod(widget.entries, selectedDays);
 
@@ -82,11 +83,15 @@ class _InsightsContentState extends State<_InsightsContent> {
           _StatBox(value: '${shownEntries.length}', label: 'Entries'),
           const SizedBox(width: 10),
           _StatBox(
-              value: selectedDays == 0 ? '$activeDays' : '$activeDays/$selectedDays',
+              value: selectedDays == 0
+                  ? '$activeDays'
+                  : '$activeDays/$selectedDays',
               label: 'Days journaled'),
           const SizedBox(width: 10),
           _StatBox(
-              value: topMood == null ? '—' : (Moods.byLabel(topMood)?.emoji ?? '•'),
+              value: topMood == null
+                  ? '—'
+                  : (Moods.byLabel(topMood)?.emoji ?? '•'),
               label: topMood ?? 'Top mood'),
         ]),
         const SizedBox(height: 20),
@@ -137,10 +142,9 @@ class _InsightsContentState extends State<_InsightsContent> {
         const SizedBox(height: 20),
         _Section(
           title: 'Mood over time',
-          subtitle:
-              showMoodTrend
-                  ? 'How your most common moods appear across the last 4 weeks.'
-                  : 'Your last ${selectedDays == 7 ? 7 : 30} days. Each coloured day has a saved mood.',
+          subtitle: showMoodTrend
+              ? 'How your most common moods appear across the last 4 weeks.'
+              : 'Your last ${selectedDays == 7 ? 7 : 30} days. Each coloured day has a saved mood.',
           child: Column(children: [
             Row(children: [
               const Spacer(),
@@ -212,7 +216,8 @@ class _InsightsContentState extends State<_InsightsContent> {
           title: 'Music in your journal',
           subtitle: musicSubtitle(shownEntries),
           child: topArtist == null
-              ? const _NoData('Attach a song to an entry to see your music habits.')
+              ? const _NoData(
+                  'Attach a song to an entry to see your music habits.')
               : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Text('Most returned-to artist',
                       style: TextStyle(fontSize: 12, color: AppColors.grey)),
@@ -223,7 +228,8 @@ class _InsightsContentState extends State<_InsightsContent> {
                           fontWeight: FontWeight.w700,
                           color: AppColors.text)),
                   Text('${artists[topArtist]} entries',
-                      style: const TextStyle(fontSize: 12, color: AppColors.grey)),
+                      style:
+                          const TextStyle(fontSize: 12, color: AppColors.grey)),
                 ]),
         ),
         const SizedBox(height: 20),
@@ -231,13 +237,15 @@ class _InsightsContentState extends State<_InsightsContent> {
           title: 'Your recurring contexts',
           subtitle: 'Tags you return to most often',
           child: tags.isEmpty
-              ? const _NoData('Add tags to reveal the contexts in your entries.')
+              ? const _NoData(
+                  'Add tags to reveal the contexts in your entries.')
               : Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: sortedItems(tags).take(8).map((item) {
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 7),
                       decoration: BoxDecoration(
                         color: AppColors.pink.withValues(alpha: 0.45),
                         borderRadius: BorderRadius.circular(16),
@@ -304,7 +312,9 @@ class _InsightsContentState extends State<_InsightsContent> {
 Map<String, int> countMoods(List<JournalEntry> entries) {
   final counts = <String, int>{};
   for (final entry in entries) {
-    if (entry.mood.isNotEmpty) counts[entry.mood] = (counts[entry.mood] ?? 0) + 1;
+    if (entry.mood.isNotEmpty) {
+      counts[entry.mood] = (counts[entry.mood] ?? 0) + 1;
+    }
   }
   return counts;
 }
@@ -438,15 +448,15 @@ String weekdayName(int weekday) {
 String? compareWithPreviousPeriod(List<JournalEntry> entries, int days) {
   if (days == 0) return null;
   final now = DateTime.now();
-  final currentStart = DateTime(now.year, now.month, now.day)
-      .subtract(Duration(days: days - 1));
+  final currentStart =
+      DateTime(now.year, now.month, now.day).subtract(Duration(days: days - 1));
   final previousStart = currentStart.subtract(Duration(days: days));
-  final currentCount = entries
-      .where((entry) => !entry.date.isBefore(currentStart))
-      .length;
+  final currentCount =
+      entries.where((entry) => !entry.date.isBefore(currentStart)).length;
   final previousCount = entries
       .where((entry) =>
-          !entry.date.isBefore(previousStart) && entry.date.isBefore(currentStart))
+          !entry.date.isBefore(previousStart) &&
+          entry.date.isBefore(currentStart))
       .length;
   if (currentCount + previousCount < 3) return null;
 
@@ -471,7 +481,8 @@ String? longestReflectionTag(List<JournalEntry> entries) {
   }
   if (wordsByTag.isEmpty) return null;
 
-  final tags = wordsByTag.entries.where((entry) => entry.value.length >= 2).toList();
+  final tags =
+      wordsByTag.entries.where((entry) => entry.value.length >= 2).toList();
   if (tags.isEmpty) return null;
   tags.sort((a, b) {
     final averageA = a.value.reduce((x, y) => x + y) / a.value.length;
@@ -501,7 +512,8 @@ List<MapEntry<String, int>> sortedItems(Map<String, int> counts) {
 }
 
 List<Mood> sortedMoods(Map<String, int> counts) {
-  final moods = Moods.combined.where((mood) => counts.containsKey(mood.label)).toList();
+  final moods =
+      Moods.combined.where((mood) => counts.containsKey(mood.label)).toList();
   moods.sort((a, b) => counts[b.label]!.compareTo(counts[a.label]!));
   return moods;
 }
@@ -531,12 +543,18 @@ int currentStreak(List<JournalEntry> entries) {
 }
 
 int longestStreak(List<JournalEntry> entries) {
-  final days = entries.map((entry) => DateTime(entry.date.year, entry.date.month, entry.date.day)).toSet().toList()..sort();
+  final days = entries
+      .map((entry) =>
+          DateTime(entry.date.year, entry.date.month, entry.date.day))
+      .toSet()
+      .toList()
+    ..sort();
   var best = 0;
   var run = 0;
   DateTime? previous;
   for (final day in days) {
-    run = previous != null && day.difference(previous).inDays == 1 ? run + 1 : 1;
+    run =
+        previous != null && day.difference(previous).inDays == 1 ? run + 1 : 1;
     if (run > best) best = run;
     previous = day;
   }
@@ -546,7 +564,8 @@ int longestStreak(List<JournalEntry> entries) {
 int averageWords(List<JournalEntry> entries) {
   final notes = entries.where((entry) => entry.note.trim().isNotEmpty).toList();
   if (notes.isEmpty) return 0;
-  final words = notes.fold(0, (sum, entry) => sum + entry.note.trim().split(RegExp(r'\s+')).length);
+  final words = notes.fold(
+      0, (sum, entry) => sum + entry.note.trim().split(RegExp(r'\s+')).length);
   return (words / notes.length).round();
 }
 
@@ -555,35 +574,55 @@ class _StatBox extends StatelessWidget {
   final String label;
   const _StatBox({required this.value, required this.label});
   @override
-  Widget build(BuildContext context) => Expanded(child: Container(
-    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 3),
-    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.border)),
-    child: Column(children: [
-      Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.text)),
-      const SizedBox(height: 4),
-      Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: AppColors.grey)),
-    ]),
-  ));
+  Widget build(BuildContext context) => Expanded(
+          child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 3),
+        decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.border)),
+        child: Column(children: [
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text)),
+          const SizedBox(height: 4),
+          Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 10, color: AppColors.grey)),
+        ]),
+      ));
 }
 
 class _Section extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget child;
-  const _Section({required this.title, required this.subtitle, required this.child});
+  const _Section(
+      {required this.title, required this.subtitle, required this.child});
   @override
   Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.border)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.text)),
-      const SizedBox(height: 3),
-      Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.grey)),
-      const SizedBox(height: 14),
-      child,
-    ]),
-  );
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.border)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text)),
+          const SizedBox(height: 3),
+          Text(subtitle,
+              style: const TextStyle(fontSize: 12, color: AppColors.grey)),
+          const SizedBox(height: 14),
+          child,
+        ]),
+      );
 }
 
 class _WeeklyChart extends StatelessWidget {
@@ -591,19 +630,37 @@ class _WeeklyChart extends StatelessWidget {
   const _WeeklyChart({required this.counts});
   @override
   Widget build(BuildContext context) {
-    final max = counts.fold(1, (biggest, count) => count > biggest ? count : biggest);
+    final max =
+        counts.fold(1, (biggest, count) => count > biggest ? count : biggest);
     final today = DateTime.now();
     const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return SizedBox(height: 104, child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: List.generate(7, (index) {
-      final weekday = today.subtract(Duration(days: 6 - index)).weekday;
-      return Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-        Text(counts[index] == 0 ? '' : '${counts[index]}', style: const TextStyle(fontSize: 10, color: AppColors.grey)),
-        const SizedBox(height: 4),
-        Container(height: counts[index] == 0 ? 2 : 54 * counts[index] / max, margin: const EdgeInsets.symmetric(horizontal: 5), decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(5))),
-        const SizedBox(height: 7),
-        Text(names[weekday - 1].substring(0, 1), style: const TextStyle(fontSize: 11, color: AppColors.grey)),
-      ]));
-    })));
+    return SizedBox(
+        height: 104,
+        child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(7, (index) {
+              final weekday = today.subtract(Duration(days: 6 - index)).weekday;
+              return Expanded(
+                  child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                    Text(counts[index] == 0 ? '' : '${counts[index]}',
+                        style: const TextStyle(
+                            fontSize: 10, color: AppColors.grey)),
+                    const SizedBox(height: 4),
+                    Container(
+                        height:
+                            counts[index] == 0 ? 2 : 54 * counts[index] / max,
+                        margin: const EdgeInsets.symmetric(horizontal: 5),
+                        decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(5))),
+                    const SizedBox(height: 7),
+                    Text(names[weekday - 1].substring(0, 1),
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.grey)),
+                  ]));
+            })));
   }
 }
 
@@ -652,7 +709,8 @@ class _MoodTimeline extends StatelessWidget {
       decoration: BoxDecoration(
         color: mood?.color.withValues(alpha: 0.35) ?? AppColors.lightGrey,
         borderRadius: BorderRadius.circular(9),
-        border: isToday ? Border.all(color: AppColors.primary, width: 1.5) : null,
+        border:
+            isToday ? Border.all(color: AppColors.primary, width: 1.5) : null,
       ),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Text(
@@ -716,14 +774,16 @@ class _MoodTrendChart extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: List.generate(4, (week) {
             return Expanded(
-              child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+              child:
+                  Column(mainAxisAlignment: MainAxisAlignment.end, children: [
                 Expanded(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: moods.map((mood) {
                       final count = countsByMood[mood]![week];
-                      final color = Moods.byLabel(mood)?.color ?? AppColors.primary;
+                      final color =
+                          Moods.byLabel(mood)?.color ?? AppColors.primary;
                       return Container(
                         width: 10,
                         height: count == 0 ? 2 : 74 * count / biggestCount,
@@ -738,7 +798,8 @@ class _MoodTrendChart extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text('Week ${week + 1}',
-                    style: const TextStyle(fontSize: 10, color: AppColors.grey)),
+                    style:
+                        const TextStyle(fontSize: 10, color: AppColors.grey)),
               ]),
             );
           }),
@@ -773,34 +834,56 @@ class _SmallStat extends StatelessWidget {
   final IconData icon;
   final String value;
   final String label;
-  const _SmallStat({required this.icon, required this.value, required this.label});
+  const _SmallStat(
+      {required this.icon, required this.value, required this.label});
   @override
-  Widget build(BuildContext context) => Expanded(child: Column(children: [
-    Icon(icon, color: AppColors.primary, size: 19),
-    const SizedBox(height: 5),
-    Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.text)),
-    const SizedBox(height: 2),
-    Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, color: AppColors.grey)),
-  ]));
+  Widget build(BuildContext context) => Expanded(
+          child: Column(children: [
+        Icon(icon, color: AppColors.primary, size: 19),
+        const SizedBox(height: 5),
+        Text(value,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text)),
+        const SizedBox(height: 2),
+        Text(label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 10, color: AppColors.grey)),
+      ]));
 }
 
 class _MoodRow extends StatelessWidget {
   final Mood mood;
   final int count;
   final int total;
-  const _MoodRow({required this.mood, required this.count, required this.total});
+  const _MoodRow(
+      {required this.mood, required this.count, required this.total});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Expanded(child: Text('${mood.emoji} ${mood.label}', style: const TextStyle(fontSize: 13, color: AppColors.text))),
-        Text('${(count / total * 100).round()}%  ·  $count', style: const TextStyle(fontSize: 12, color: AppColors.grey, fontWeight: FontWeight.w600)),
-      ]),
-      const SizedBox(height: 6),
-      ClipRRect(borderRadius: BorderRadius.circular(6), child: LinearProgressIndicator(value: count / total, minHeight: 8, backgroundColor: AppColors.lightGrey, valueColor: AlwaysStoppedAnimation<Color>(mood.color))),
-    ]),
-  );
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(
+                child: Text('${mood.emoji} ${mood.label}',
+                    style:
+                        const TextStyle(fontSize: 13, color: AppColors.text))),
+            Text('${(count / total * 100).round()}%  ·  $count',
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.grey,
+                    fontWeight: FontWeight.w600)),
+          ]),
+          const SizedBox(height: 6),
+          ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                  value: count / total,
+                  minHeight: 8,
+                  backgroundColor: AppColors.lightGrey,
+                  valueColor: AlwaysStoppedAnimation<Color>(mood.color))),
+        ]),
+      );
 }
 
 class _ExtraInsights extends StatelessWidget {
@@ -837,7 +920,8 @@ class _ExtraInsights extends StatelessWidget {
       ],
       if (musicMoodLabel != null) ...[
         const SizedBox(height: 10),
-        Text('When you attach music, you most often record '
+        Text(
+            'When you attach music, you most often record '
             '$musicMoodEmoji $musicMoodLabel.',
             style: const TextStyle(fontSize: 13, color: AppColors.text)),
       ],
@@ -850,19 +934,31 @@ class _PatternCard extends StatelessWidget {
   const _PatternCard({required this.text});
   @override
   Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: AppColors.mint.withValues(alpha: 0.45), borderRadius: BorderRadius.circular(18)),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Icon(Icons.auto_awesome_rounded, color: AppColors.primary, size: 20),
-      const SizedBox(width: 10),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('A small pattern', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.text)),
-        const SizedBox(height: 4),
-        Text(text, style: const TextStyle(fontSize: 13, color: AppColors.text, height: 1.35)),
-      ])),
-    ]),
-  );
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            color: AppColors.mint.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(18)),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(Icons.auto_awesome_rounded,
+              color: AppColors.primary, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                const Text('A small pattern',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text)),
+                const SizedBox(height: 4),
+                Text(text,
+                    style: const TextStyle(
+                        fontSize: 13, color: AppColors.text, height: 1.35)),
+              ])),
+        ]),
+      );
 }
 
 class _ComparisonCard extends StatelessWidget {
@@ -896,20 +992,30 @@ class _NoData extends StatelessWidget {
   final String text;
   const _NoData(this.text);
   @override
-  Widget build(BuildContext context) => Text(text, style: const TextStyle(fontSize: 13, color: AppColors.grey, height: 1.4));
+  Widget build(BuildContext context) => Text(text,
+      style: const TextStyle(fontSize: 13, color: AppColors.grey, height: 1.4));
 }
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
   @override
-  Widget build(BuildContext context) => const Center(child: Padding(
-    padding: EdgeInsets.all(32),
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Icon(Icons.insights_rounded, size: 42, color: AppColors.primary),
-      SizedBox(height: 14),
-      Text('Your patterns will grow here.', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.text)),
-      SizedBox(height: 6),
-      Text('Add a few entries to see your moods, journaling rhythm, and music habits.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.grey, fontSize: 14, height: 1.45)),
-    ]),
-  ));
+  Widget build(BuildContext context) => const Center(
+          child: Padding(
+        padding: EdgeInsets.all(32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.insights_rounded, size: 42, color: AppColors.primary),
+          SizedBox(height: 14),
+          Text('Your patterns will grow here.',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text)),
+          SizedBox(height: 6),
+          Text(
+              'Add a few entries to see your moods, journaling rhythm, and music habits.',
+              textAlign: TextAlign.center,
+              style:
+                  TextStyle(color: AppColors.grey, fontSize: 14, height: 1.45)),
+        ]),
+      ));
 }

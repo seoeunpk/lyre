@@ -59,6 +59,18 @@ Firebase configuration files are already included. To connect a different Fireba
 flutter run
 ```
 
+### Quality checks
+
+Run the automated unit and widget tests locally with:
+
+```bash
+flutter analyze
+flutter test
+```
+
+GitHub Actions runs both commands on every push and pull request. The suite
+uses mocked HTTP responses for Spotify and does not access live Firebase data.
+
 
 
 ## Project Structure
