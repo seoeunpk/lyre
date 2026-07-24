@@ -2,7 +2,7 @@
 
 A mood-to-music journal for iOS and Android. Log how you feel, attach a song, and watch your month fill up with album art.
 
----
+
 
 ## Tech Stack
 
@@ -14,7 +14,7 @@ A mood-to-music journal for iOS and Android. Log how you feel, attach a song, an
 | Music data | Spotify Web API |
 | Config | flutter_dotenv |
 
----
+
 
 ## Features
 
@@ -26,7 +26,7 @@ A mood-to-music journal for iOS and Android. Log how you feel, attach a song, an
 - **Insights** — Most frequent moods, songs, artists, and tags *(in progress)*
 - **Social** — Share your calendar with friends *(planned)*
 
----
+
 
 ## Getting Started
 
@@ -64,7 +64,7 @@ Firebase configuration files are already included. To connect a different Fireba
 flutter run
 ```
 
----
+
 
 ## Project Structure
 

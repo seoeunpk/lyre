@@ -13,11 +13,30 @@ class MoodService {
         .doc('_custom_moods')
         .get();
     final list = doc.data()?['moods'] as List? ?? [];
-    return list.map((m) => Mood(
-      label: m['label'] as String,
-      emoji: m['emoji'] as String,
-      color: Color(m['colorValue'] as int),
-    )).toList();
+    final moods = <Mood>[];
+    for (final m in list) {
+      moods.add(Mood(
+        label: m['label'] as String,
+        emoji: m['emoji'] as String,
+        color: Color(m['colorValue'] as int),
+      ));
+    }
+    return moods;
+  }
+
+  Future<void> deleteCustomMood(String uid, Mood mood) async {
+    await _db
+        .collection('users')
+        .doc(uid)
+        .collection('entries')
+        .doc('_custom_moods')
+        .set({
+      'moods': FieldValue.arrayRemove([{
+        'label': mood.label,
+        'emoji': mood.emoji,
+        'colorValue': mood.color.toARGB32(),
+      }]),
+    }, SetOptions(merge: true));
   }
 
   Future<void> addCustomMood(String uid, Mood mood) async {

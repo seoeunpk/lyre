@@ -16,9 +16,10 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   final _journal = JournalService();
   final _searchCtrl = TextEditingController();
+  final _searchFocus = FocusNode();
 
   String _keyword = '';
-  String? _moodFilter;
+  Set<String> _moodFilter = {};
   String? _tagFilter;
 
   String? get _uid => AuthService().currentUser?.uid;
@@ -26,13 +27,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
   List<JournalEntry> _applyFilters(List<JournalEntry> all) {
     final result = <JournalEntry>[];
     for (final e in all) {
-      if (_moodFilter != null && e.mood != _moodFilter) continue;
+      if (_moodFilter.isNotEmpty && !_moodFilter.contains(e.mood)) continue;
       if (_tagFilter != null && !e.tags.contains(_tagFilter)) continue;
       if (_keyword.isNotEmpty) {
         final k = _keyword.toLowerCase();
@@ -68,6 +70,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             color: AppColors.text,
           ),
         ),
+        actions: const [SizedBox(width: 4)],
       ),
       body: StreamBuilder<List<JournalEntry>>(
         stream: _uid == null ? null : _journal.getEntries(_uid!),
@@ -77,14 +80,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 child: CircularProgressIndicator(color: AppColors.primary));
           }
           final all = snapshot.data ?? const <JournalEntry>[];
-          final allTags = all.expand((e) => e.tags).toSet();
+          final allTags = <String>{};
+          for (final e in all) {
+            allTags.addAll(e.tags);
+          }
           final filtered = _applyFilters(all);
 
           return Column(
             children: [
-              buildSearchField(),
-              buildMoodFilters(),
-              if (allTags.isNotEmpty) buildTagFilters(allTags.toList()),
+              _buildSearchRow(allTags),
               const SizedBox(height: 4),
               Expanded(
                 child: all.isEmpty
@@ -94,8 +98,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         : ListView.builder(
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                             itemCount: filtered.length,
-                            itemBuilder: (context, i) =>
-                                EntryHistoryCard(
+                            itemBuilder: (context, i) => EntryHistoryCard(
                               entry: filtered[i],
                               onTap: () => _openEntry(filtered[i].date),
                             ),
@@ -108,6 +111,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+
   void _openEntry(DateTime date) {
     Navigator.push(
       context,
@@ -115,98 +119,237 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget buildSearchField() {
+  Widget _buildSearchRow(Set<String> allTags) {
+    final hasFilter = _moodFilter.isNotEmpty || _tagFilter != null;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: TextField(
-        controller: _searchCtrl,
-        onChanged: (v) => setState(() => _keyword = v.trim()),
-        style: const TextStyle(fontSize: 14, color: AppColors.text),
-        decoration: InputDecoration(
-          hintText: "Search notes, songs, tags...",
-          hintStyle: const TextStyle(color: AppColors.grey, fontSize: 13),
-          prefixIcon: const Icon(Icons.search_rounded,
-              color: AppColors.grey, size: 20),
-          suffixIcon: _keyword.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.close_rounded,
-                      color: AppColors.grey, size: 18),
-                  onPressed: () {
-                    _searchCtrl.clear();
-                    setState(() => _keyword = '');
-                  },
-                )
-              : null,
-          filled: true,
-          fillColor: AppColors.surface,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.border),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              key: const ValueKey('history-search'),
+              controller: _searchCtrl,
+              focusNode: _searchFocus,
+              onChanged: (v) => setState(() => _keyword = v.trim()),
+              style: const TextStyle(fontSize: 14, color: AppColors.text),
+              decoration: InputDecoration(
+                hintText: "Search notes, songs, tags...",
+                hintStyle:
+                    const TextStyle(color: AppColors.grey, fontSize: 13),
+                prefixIcon: const Icon(Icons.search_rounded,
+                    color: AppColors.grey, size: 20),
+                suffixIcon: _keyword.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close_rounded,
+                            color: AppColors.grey, size: 18),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          setState(() => _keyword = '');
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: AppColors.surface,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 2),
+                ),
+              ),
+            ),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.border),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => _showFilterSheet(allTags),
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: hasFilter ? AppColors.primary : AppColors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: hasFilter ? AppColors.primary : AppColors.border,
+                ),
+              ),
+              child: Icon(
+                Icons.tune_rounded,
+                color: hasFilter ? Colors.white : AppColors.text,
+                size: 20,
+              ),
+            ),
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    final base = color ?? AppColors.primary;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected
+              ? base.withValues(alpha: 0.28)
+              : AppColors.text.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: AppColors.text,
           ),
         ),
       ),
     );
   }
 
-  Widget buildMoodFilters() {
-    return SizedBox(
-      height: 40,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: [
-          FilterChipPill(
-            label: "All moods",
-            selected: _moodFilter == null,
-            onTap: () => setState(() => _moodFilter = null),
-          ),
-          ...Moods.all.map((m) => FilterChipPill(
-                label: "${m.emoji} ${m.label}",
-                selected: _moodFilter == m.label,
-                color: m.color,
-                onTap: () => setState(() => _moodFilter =
-                    _moodFilter == m.label ? null : m.label),
-              )),
-        ],
-      ),
-    );
-  }
+  void _showFilterSheet(Set<String> allTags) {
+    final localMoods = Set<String>.from(_moodFilter);
+    String? localTag = _tagFilter;
+    final tags = allTags.toList()..sort();
 
-  Widget buildTagFilters(List<String> tags) {
-    tags.sort();
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: SizedBox(
-        height: 36,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          children: [
-            FilterChipPill(
-              label: "All tags",
-              selected: _tagFilter == null,
-              onTap: () => setState(() => _tagFilter = null),
-              small: true,
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    const Text(
+                      "Filter",
+                      style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.text),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () => setLocal(() {
+                        localMoods.clear();
+                        localTag = null;
+                      }),
+                      child: const Text("Clear all",
+                          style: TextStyle(
+                              color: AppColors.grey, fontSize: 13)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text("MOOD",
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.grey,
+                        letterSpacing: 0.8)),
+                const SizedBox(height: 10),
+                Builder(builder: (_) {
+                  final moodChips = <Widget>[];
+                  for (final m in Moods.combined) {
+                    moodChips.add(_filterChip(
+                      label: "${m.emoji} ${m.label}",
+                      selected: localMoods.contains(m.label),
+                      color: m.color,
+                      onTap: () => setLocal(() {
+                        if (localMoods.contains(m.label)) {
+                          localMoods.remove(m.label);
+                        } else {
+                          localMoods.add(m.label);
+                        }
+                      }),
+                    ));
+                  }
+                  return Wrap(spacing: 6, runSpacing: 6, children: moodChips);
+                }),
+                if (tags.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  const Text("TAGS",
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.grey,
+                          letterSpacing: 0.8)),
+                  const SizedBox(height: 10),
+                  Builder(builder: (_) {
+                    final tagChips = <Widget>[];
+                    for (final t in tags) {
+                      tagChips.add(_filterChip(
+                        label: "#$t",
+                        selected: localTag == t,
+                        color: AppColors.pink,
+                        onTap: () => setLocal(() =>
+                            localTag = localTag == t ? null : t),
+                      ));
+                    }
+                    return Wrap(spacing: 6, runSpacing: 6, children: tagChips);
+                  }),
+                ],
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _moodFilter = Set.from(localMoods);
+                        _tagFilter = localTag;
+                      });
+                      Navigator.pop(ctx);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    child: const Text("Apply",
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
             ),
-            ...tags.map((t) => FilterChipPill(
-                  label: "#$t",
-                  selected: _tagFilter == t,
-                  color: AppColors.pink,
-                  small: true,
-                  onTap: () => setState(
-                      () => _tagFilter = _tagFilter == t ? null : t),
-                )),
-          ],
+          ),
         ),
       ),
     );
@@ -332,7 +475,7 @@ class EntryHistoryCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: mood.color.withValues(alpha: 0.3),
+                      color: mood.color.withValues(alpha: 0.28),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -403,32 +546,33 @@ class EntryHistoryCard extends StatelessWidget {
             ],
             if (entry.tags.isNotEmpty) ...[
               const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: entry.tags
-                    .map((t) => Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.pink.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            "#$t",
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.text,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ))
-                    .toList(),
-              ),
+              _buildTagPills(entry.tags),
             ],
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildTagPills(List<String> tagList) {
+    final pills = <Widget>[];
+    for (final t in tagList) {
+      pills.add(Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.pink.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          "#$t",
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.text,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ));
+    }
+    return Wrap(spacing: 6, runSpacing: 6, children: pills);
   }
 }
