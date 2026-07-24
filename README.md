@@ -11,8 +11,7 @@ A mood-to-music journal for iOS and Android. Log how you feel, attach a song, an
 | UI / Client | Flutter (Dart) |
 | Identity | Firebase Auth |
 | Database | Cloud Firestore |
-| Music data | Spotify Web API |
-| Config | flutter_dotenv |
+| Music data | Spotify Web API (proxied through a Cloudflare Worker) |
 
 
 
@@ -34,7 +33,6 @@ A mood-to-music journal for iOS and Android. Log how you feel, attach a song, an
 
 - Flutter SDK
 - Git
-- A Spotify developer account
 - An iOS/Android emulator or physical device
 
 ### Clone and install
@@ -47,12 +45,9 @@ flutter pub get
 
 ### Spotify credentials
 
-Create an app in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and add your credentials to a `.env` file at the project root:
+Spotify search is proxied through a Cloudflare Worker (see [`worker/`](worker/)), so the Flutter app itself never holds a client ID or secret — there's no `.env` file to set up. The Worker owns the credentials and exposes a single `/search` endpoint that the app calls.
 
-```
-SPOTIFY_CLIENT_ID=your_client_id
-SPOTIFY_CLIENT_SECRET=your_client_secret
-```
+If you're standing up your own backend, create an app in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard), deploy the Worker in `worker/`, and add the client ID/secret as Worker secrets (never as app config). See [`worker/README.md`](worker/README.md) for deploy steps, then point `SpotifyService` at your Worker URL.
 
 ### Firebase
 
@@ -88,7 +83,9 @@ lyre/
 │   │   └── spotify_service.dart
 │   └── utils/
 │       └── app_colors.dart
+├── worker/                (Cloudflare Worker proxying Spotify API calls)
+│   ├── src/index.js
+│   └── wrangler.toml
 ├── firestore.rules
-├── pubspec.yaml
-└── .env                  (gitignored)
+└── pubspec.yaml
 ```
