@@ -42,11 +42,10 @@ class _SharingSettingsScreenState extends State<SharingSettingsScreen> {
       return;
     }
     final settings = await _sharing.getSettings(uid);
-    final friendshipsSnap =
-        await _friends.friendshipsFor(uid).first.timeout(
-              const Duration(seconds: 10),
-              onTimeout: () => [],
-            );
+    final friendshipsSnap = await _friends.friendshipsFor(uid).first.timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => [],
+        );
     final accepted = friendshipsSnap.where((f) => f.isAccepted).toList();
     await Future.wait(accepted.map((f) async {
       final otherUid = f.otherUid(uid);
@@ -137,8 +136,8 @@ class _SharingSettingsScreenState extends State<SharingSettingsScreen> {
                     visualDensity: VisualDensity.compact,
                     activeColor: AppColors.primary,
                     title: Text(field.label,
-                        style:
-                            const TextStyle(fontSize: 14, color: AppColors.text)),
+                        style: const TextStyle(
+                            fontSize: 14, color: AppColors.text)),
                   ),
                 const Padding(
                   padding: EdgeInsets.only(bottom: 10, top: 2),
@@ -161,27 +160,42 @@ class _SharingSettingsScreenState extends State<SharingSettingsScreen> {
                         fontSize: 13,
                         color: AppColors.grey,
                         fontWeight: FontWeight.w500)),
-                for (final option in _visibilityOptions)
-                  RadioListTile<String>(
-                    value: option.$1,
-                    groupValue: draft.visibility,
-                    onChanged: (v) =>
-                        setLocal(() => draft = draft.copyWith(visibility: v)),
-                    activeColor: AppColors.primary,
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    visualDensity: VisualDensity.compact,
-                    title: Text(option.$2,
-                        style:
-                            const TextStyle(fontSize: 14, color: AppColors.text)),
+                RadioGroup<String>(
+                  groupValue: draft.visibility,
+                  onChanged: (value) {
+                    if (value != null) {
+                      setLocal(
+                        () => draft = draft.copyWith(visibility: value),
+                      );
+                    }
+                  },
+                  child: Column(
+                    children: [
+                      for (final option in _visibilityOptions)
+                        RadioListTile<String>(
+                          value: option.$1,
+                          activeColor: AppColors.primary,
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          visualDensity: VisualDensity.compact,
+                          title: Text(
+                            option.$2,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.text,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
+                ),
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      setState(
-                          () => _settings = _settings.withFriend(friendUid, draft));
+                      setState(() =>
+                          _settings = _settings.withFriend(friendUid, draft));
                       Navigator.pop(ctx);
                     },
                     style: ElevatedButton.styleFrom(
@@ -193,8 +207,8 @@ class _SharingSettingsScreenState extends State<SharingSettingsScreen> {
                       elevation: 0,
                     ),
                     child: const Text("Done",
-                        style:
-                            TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w700)),
                   ),
                 ),
               ],
@@ -225,7 +239,8 @@ class _SharingSettingsScreenState extends State<SharingSettingsScreen> {
         ),
       ),
       body: loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
@@ -284,8 +299,7 @@ class _SharingSettingsScreenState extends State<SharingSettingsScreen> {
           return Column(
             children: [
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 child: Row(
                   children: [
                     const SizedBox(width: 8),
@@ -302,8 +316,9 @@ class _SharingSettingsScreenState extends State<SharingSettingsScreen> {
                       icon: const Icon(Icons.tune_rounded, size: 18),
                       color: shared ? AppColors.text : AppColors.lightGrey,
                       tooltip: "$name's sharing settings",
-                      onPressed:
-                          shared ? () => _editFriendPrefs(otherUid, name) : null,
+                      onPressed: shared
+                          ? () => _editFriendPrefs(otherUid, name)
+                          : null,
                     ),
                     Switch(
                       value: shared,
@@ -315,7 +330,10 @@ class _SharingSettingsScreenState extends State<SharingSettingsScreen> {
               ),
               if (!isLast)
                 const Divider(
-                    height: 1, indent: 16, endIndent: 16, color: AppColors.border),
+                    height: 1,
+                    indent: 16,
+                    endIndent: 16,
+                    color: AppColors.border),
             ],
           );
         }),
@@ -332,11 +350,12 @@ class _ShareToggleField {
 }
 
 final _shareToggleFields = [
-  _ShareToggleField("Mood entries", (p) => p.shareMood,
-      (p, v) => p.copyWith(shareMood: v)),
+  _ShareToggleField(
+      "Mood entries", (p) => p.shareMood, (p, v) => p.copyWith(shareMood: v)),
   _ShareToggleField("Songs and artists", (p) => p.shareSongs,
       (p, v) => p.copyWith(shareSongs: v)),
-  _ShareToggleField("Tags", (p) => p.shareTags, (p, v) => p.copyWith(shareTags: v)),
+  _ShareToggleField(
+      "Tags", (p) => p.shareTags, (p, v) => p.copyWith(shareTags: v)),
 ];
 
 const _visibilityOptions = [

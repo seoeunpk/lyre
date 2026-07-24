@@ -80,7 +80,9 @@ class _AccountScreenState extends State<AccountScreen> {
         });
       }
     } catch (_) {
-      if (mounted) showAnimatedSnackBar(context, "Failed to update name.", isError: true);
+      if (mounted) {
+        showAnimatedSnackBar(context, "Failed to update name.", isError: true);
+      }
     }
     if (mounted) setState(() => _savingName = false);
   }
@@ -92,18 +94,78 @@ class _AccountScreenState extends State<AccountScreen> {
     final isEdit = existing != null;
 
     const emojis = [
-      '😊', '😄', '😁', '🥰', '😍', '🤩', '😎', '🥳', '😇', '😌',
-      '🙂', '😐', '😑', '🫤', '🙃', '🤔', '😕', '😟', '😔', '😢',
-      '😭', '😞', '🥺', '😠', '😤', '😡', '🤬', '😰', '😨', '😧',
-      '🫣', '😴', '🥱', '😪', '🤒', '🤧', '🥴', '🤯', '😵', '🥹',
-      '😮', '🫠', '😬', '🤗', '😏', '😒', '🌙', '☀️', '🌸', '🎵',
-      '🌊', '⚡', '🔥', '💫', '✨', '💤', '🎉', '💖', '🫶', '💪',
+      '😊',
+      '😄',
+      '😁',
+      '🥰',
+      '😍',
+      '🤩',
+      '😎',
+      '🥳',
+      '😇',
+      '😌',
+      '🙂',
+      '😐',
+      '😑',
+      '🫤',
+      '🙃',
+      '🤔',
+      '😕',
+      '😟',
+      '😔',
+      '😢',
+      '😭',
+      '😞',
+      '🥺',
+      '😠',
+      '😤',
+      '😡',
+      '🤬',
+      '😰',
+      '😨',
+      '😧',
+      '🫣',
+      '😴',
+      '🥱',
+      '😪',
+      '🤒',
+      '🤧',
+      '🥴',
+      '🤯',
+      '😵',
+      '🥹',
+      '😮',
+      '🫠',
+      '😬',
+      '🤗',
+      '😏',
+      '😒',
+      '🌙',
+      '☀️',
+      '🌸',
+      '🎵',
+      '🌊',
+      '⚡',
+      '🔥',
+      '💫',
+      '✨',
+      '💤',
+      '🎉',
+      '💖',
+      '🫶',
+      '💪',
     ];
 
     const palette = [
-      Color(0xFFF6C744), Color(0xFFF38B4A), Color(0xFFE57373),
-      Color(0xFFB69CD8), Color(0xFF7FA7D9), Color(0xFFA8D8CE),
-      Color(0xFFF4BDD0), Color(0xFF9E9E9E), Color(0xFF4A7B5A),
+      Color(0xFFF6C744),
+      Color(0xFFF38B4A),
+      Color(0xFFE57373),
+      Color(0xFFB69CD8),
+      Color(0xFF7FA7D9),
+      Color(0xFFA8D8CE),
+      Color(0xFFF4BDD0),
+      Color(0xFF9E9E9E),
+      Color(0xFF4A7B5A),
     ];
 
     return showDialog<Mood>(
@@ -111,11 +173,14 @@ class _AccountScreenState extends State<AccountScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
           backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
             isEdit ? "Edit mood" : "Add a mood",
             style: const TextStyle(
-                fontWeight: FontWeight.w700, color: AppColors.text, fontSize: 16),
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+                fontSize: 16),
           ),
           content: SizedBox(
             width: double.maxFinite,
@@ -134,14 +199,16 @@ class _AccountScreenState extends State<AccountScreen> {
                         border: Border.all(color: pickedColor, width: 2),
                       ),
                       child: Center(
-                        child: Text(selectedEmoji, style: const TextStyle(fontSize: 26)),
+                        child: Text(selectedEmoji,
+                            style: const TextStyle(fontSize: 26)),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
                         controller: labelCtrl,
-                        style: const TextStyle(fontSize: 14, color: AppColors.text),
+                        style: const TextStyle(
+                            fontSize: 14, color: AppColors.text),
                         decoration: appFieldDecoration(hintText: "Name"),
                       ),
                     ),
@@ -167,7 +234,8 @@ class _AccountScreenState extends State<AccountScreen> {
                         ),
                         itemCount: emojis.length,
                         itemBuilder: (_, i) => GestureDetector(
-                          onTap: () => setLocal(() => selectedEmoji = emojis[i]),
+                          onTap: () =>
+                              setLocal(() => selectedEmoji = emojis[i]),
                           child: Container(
                             decoration: BoxDecoration(
                               color: selectedEmoji == emojis[i]
@@ -244,7 +312,8 @@ class _AccountScreenState extends State<AccountScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text("Cancel", style: TextStyle(color: AppColors.grey)),
+              child:
+                  const Text("Cancel", style: TextStyle(color: AppColors.grey)),
             ),
             TextButton(
               onPressed: () {
@@ -263,7 +332,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   bool dupe = false;
                   for (final m in Moods.combined) {
                     if (m.label.toLowerCase() == label.toLowerCase() &&
-                        m.label != existing!.label) {
+                        m.label != existing.label) {
                       dupe = true;
                       break;
                     }
@@ -271,7 +340,11 @@ class _AccountScreenState extends State<AccountScreen> {
                   if (dupe) return;
                 }
                 Navigator.pop(
-                    ctx, Mood(label: label, emoji: selectedEmoji, color: pickedColor));
+                    ctx,
+                    Mood(
+                        label: label,
+                        emoji: selectedEmoji,
+                        color: pickedColor));
               },
               child: Text(
                 isEdit ? "Save" : "Add",
@@ -301,7 +374,9 @@ class _AccountScreenState extends State<AccountScreen> {
       }
       if (mounted) setState(() => _customMoods = List.from(Moods.custom));
     } catch (_) {
-      if (mounted) showAnimatedSnackBar(context, "Failed to update mood.", isError: true);
+      if (mounted) {
+        showAnimatedSnackBar(context, "Failed to update mood.", isError: true);
+      }
     }
   }
 
@@ -313,18 +388,22 @@ class _AccountScreenState extends State<AccountScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text("Delete mood?",
             style: TextStyle(
-                fontWeight: FontWeight.w700, color: AppColors.text, fontSize: 16)),
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+                fontSize: 16)),
         content: Text('Remove "${mood.emoji} ${mood.label}"?',
             style: const TextStyle(color: AppColors.grey, fontSize: 14)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Cancel", style: TextStyle(color: AppColors.grey)),
+            child:
+                const Text("Cancel", style: TextStyle(color: AppColors.grey)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text("Delete",
-                style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w700)),
+                style: TextStyle(
+                    color: AppColors.red, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -341,7 +420,9 @@ class _AccountScreenState extends State<AccountScreen> {
       Moods.custom = remaining;
       if (mounted) setState(() => _customMoods = List.from(Moods.custom));
     } catch (_) {
-      if (mounted) showAnimatedSnackBar(context, "Failed to delete mood.", isError: true);
+      if (mounted) {
+        showAnimatedSnackBar(context, "Failed to delete mood.", isError: true);
+      }
     }
   }
 
@@ -356,7 +437,9 @@ class _AccountScreenState extends State<AccountScreen> {
       }
       setState(() => _customTags = newTags);
     } catch (_) {
-      if (mounted) showAnimatedSnackBar(context, "Failed to delete tag.", isError: true);
+      if (mounted) {
+        showAnimatedSnackBar(context, "Failed to delete tag.", isError: true);
+      }
     }
   }
 
@@ -368,17 +451,20 @@ class _AccountScreenState extends State<AccountScreen> {
         elevation: 0,
         backgroundColor: AppColors.background,
         leading: IconButton(
-          icon: const Icon(Icons.chevron_left_rounded, color: AppColors.text, size: 26),
+          icon: const Icon(Icons.chevron_left_rounded,
+              color: AppColors.text, size: 26),
           onPressed: () => Navigator.pop(context, _profileChanged),
         ),
         centerTitle: true,
         title: const Text(
           "My Account",
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.text),
+          style: TextStyle(
+              fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.text),
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary))
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
               children: [
@@ -450,7 +536,8 @@ class _AccountScreenState extends State<AccountScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Icon(Icons.edit_rounded, size: 16, color: Colors.white),
+            child:
+                const Icon(Icons.edit_rounded, size: 16, color: Colors.white),
           ),
         ),
       ],
@@ -493,7 +580,8 @@ class _AccountScreenState extends State<AccountScreen> {
                         color: Colors.white, strokeWidth: 2),
                   )
                 : const Text("Save",
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                    style:
+                        TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
           ),
         ),
       ],
@@ -585,7 +673,10 @@ class _AccountScreenState extends State<AccountScreen> {
               ),
               if (!isLast)
                 const Divider(
-                    height: 1, indent: 16, endIndent: 16, color: AppColors.border),
+                    height: 1,
+                    indent: 16,
+                    endIndent: 16,
+                    color: AppColors.border),
             ],
           );
         }).toList(),
@@ -646,12 +737,15 @@ class _AccountScreenState extends State<AccountScreen> {
           Text(
             "#$tag",
             style: const TextStyle(
-                fontSize: 13, color: AppColors.text, fontWeight: FontWeight.w500),
+                fontSize: 13,
+                color: AppColors.text,
+                fontWeight: FontWeight.w500),
           ),
           const SizedBox(width: 6),
           GestureDetector(
             onTap: () => _deleteTag(tag),
-            child: const Icon(Icons.close_rounded, size: 14, color: AppColors.grey),
+            child: const Icon(Icons.close_rounded,
+                size: 14, color: AppColors.grey),
           ),
         ],
       ),
