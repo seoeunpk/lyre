@@ -59,6 +59,7 @@ class _InsightsContentState extends State<_InsightsContent> {
     final songs = countSongs(shownEntries);
     final topMood = getTopItem(moods);
     final topArtist = getTopItem(artists);
+    final hasReliableTopArtist = topArtist != null && shownEntries.length >= 5;
     final activeDays = shownEntries.map((e) => dateKey(e.date)).toSet().length;
     final daysLabel =
         selectedDays == 0 ? 'all time' : 'last $selectedDays days';
@@ -215,9 +216,10 @@ class _InsightsContentState extends State<_InsightsContent> {
         _Section(
           title: 'Music in your journal',
           subtitle: musicSubtitle(shownEntries),
-          child: topArtist == null
-              ? const _NoData(
-                  'Attach a song to an entry to see your music habits.')
+          child: !hasReliableTopArtist
+              ? _NoData(topArtist == null
+                  ? 'Attach a song to an entry to see your music habits.'
+                  : 'Add a few more entries to discover your patterns.')
               : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Text('Most returned-to artist',
                       style: TextStyle(fontSize: 12, color: AppColors.grey)),

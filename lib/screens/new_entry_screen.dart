@@ -475,10 +475,6 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
   }
 
   void saveEntry() async {
-    if (song == null) {
-      _showSnackBar("Pick today's song first", isError: true);
-      return;
-    }
     if (selectedMood == null) {
       _showSnackBar("How are you feeling? Pick a mood", isError: true);
       return;
@@ -499,7 +495,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
         mood: selectedMood!,
         note: noteController.text.trim(),
         tags: tags.toList(),
-        song: EntrySong.fromTrack(song!),
+        song: song != null ? EntrySong.fromTrack(song!) : null,
       );
       await _journal.saveEntry(uid, entry);
 
@@ -509,6 +505,51 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
     } catch (e) {
       if (!mounted) return;
       _showSnackBar("Failed to save. Try again.", isError: true);
+      setState(() => saving = false);
+    }
+  }
+
+  void saveDraft() async {
+    final hasNote = noteController.text.trim().isNotEmpty;
+    final filledCount = [
+      selectedMood != null,
+      hasNote,
+      song != null,
+      tags.isNotEmpty,
+    ].where((filled) => filled).length;
+
+    if (filledCount == 0) {
+      _showSnackBar("Nothing to save yet", isError: true);
+      return;
+    }
+    if (filledCount > 1) {
+      _showSnackBar("A draft can only hold one thing: a mood, a tag, a song, or a note",
+          isError: true);
+      return;
+    }
+
+    setState(() => saving = true);
+
+    try {
+      final uid = AuthService().currentUser?.uid;
+      if (uid == null) throw Exception('not signed in');
+
+      final entry = JournalEntry(
+        date: widget.date,
+        mood: selectedMood ?? '',
+        note: noteController.text.trim(),
+        tags: tags.toList(),
+        song: song != null ? EntrySong.fromTrack(song!) : null,
+        isDraft: true,
+      );
+      await _journal.saveEntry(uid, entry);
+
+      if (!mounted) return;
+      _showSnackBar("Draft saved");
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar("Failed to save draft. Try again.", isError: true);
       setState(() => saving = false);
     }
   }
@@ -623,6 +664,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                   saving: saving,
                   isEdit: entryExists,
                   onPressed: saveEntry,
+                  onSaveDraft: saveDraft,
                 ),
               ],
             ),
@@ -758,7 +800,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                   border: Border.all(color: AppColors.border),
                 ),
                 child: const Center(
-                  child: Text("Add a song",
+                  child: Text("Add a song (optional)",
                       style: TextStyle(
                           color: AppColors.grey, fontSize: 14, fontWeight: FontWeight.w500)),
                 ),
@@ -1116,11 +1158,13 @@ class DoneButton extends StatelessWidget {
   final bool saving;
   final bool isEdit;
   final VoidCallback onPressed;
+  final VoidCallback? onSaveDraft;
   const DoneButton({
     super.key,
     required this.saving,
     required this.isEdit,
     required this.onPressed,
+    this.onSaveDraft,
   });
 
   @override
@@ -1128,31 +1172,53 @@ class DoneButton extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.fromLTRB(
           16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: saving ? null : onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 17),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(22)),
-            elevation: 0,
-          ),
-          child: saving
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2),
-                )
-              : Text(
-                  isEdit ? "Update" : "Done",
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w700),
+      child: Column(
+        children: [
+          if (onSaveDraft != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: saving ? null : onSaveDraft,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.grey,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text(
+                    "Save draft",
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
                 ),
-        ),
+              ),
+            ),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: saving ? null : onPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 17),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(22)),
+                elevation: 0,
+              ),
+              child: saving
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2),
+                    )
+                  : Text(
+                      isEdit ? "Update" : "Done",
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }

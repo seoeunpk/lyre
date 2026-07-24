@@ -42,6 +42,7 @@ class JournalEntry {
   final String note;
   final List<String> tags;
   final EntrySong? song;
+  final bool isDraft;
 
   JournalEntry({
     required this.date,
@@ -49,17 +50,19 @@ class JournalEntry {
     required this.note,
     required this.tags,
     this.song,
+    this.isDraft = false,
   });
 
   String get docId =>
       "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 
-  JournalEntry copyWith({String? note}) => JournalEntry(
+  JournalEntry copyWith({String? note, bool? isDraft}) => JournalEntry(
         date: date,
         mood: mood,
         note: note ?? this.note,
         tags: tags,
         song: song,
+        isDraft: isDraft ?? this.isDraft,
       );
 
   factory JournalEntry.fromMap(Map<String, dynamic> map) {
@@ -73,6 +76,7 @@ class JournalEntry {
       song: songMap is Map<String, dynamic>
           ? EntrySong.fromMap(songMap)
           : null,
+      isDraft: map['isDraft'] == true,
     );
   }
 
@@ -81,6 +85,7 @@ class JournalEntry {
         'mood': mood,
         'tags': tags,
         'song': song?.toMap(),
+        'isDraft': isDraft,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 }
