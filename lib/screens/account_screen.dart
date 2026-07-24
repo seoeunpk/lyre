@@ -17,13 +17,13 @@ class AccountScreen extends StatefulWidget {
 
 class _AccountScreenState extends State<AccountScreen> {
   final _nameCtrl = TextEditingController();
-  final _tagCtrl = TextEditingController();
 
   List<Mood> _customMoods = [];
   List<String> _customTags = [];
   bool _loading = true;
   bool _savingName = false;
   bool _profileChanged = false;
+  bool _editingName = false;
 
   String? get _uid => AuthService().currentUser?.uid;
 
@@ -36,7 +36,6 @@ class _AccountScreenState extends State<AccountScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _tagCtrl.dispose();
     super.dispose();
   }
 
@@ -75,7 +74,10 @@ class _AccountScreenState extends State<AccountScreen> {
       await AuthService().currentUser?.updateDisplayName(name);
       if (mounted) {
         showAnimatedSnackBar(context, "Name updated!");
-        setState(() => _profileChanged = true);
+        setState(() {
+          _profileChanged = true;
+          _editingName = false;
+        });
       }
     } catch (_) {
       if (mounted) showAnimatedSnackBar(context, "Failed to update name.", isError: true);
@@ -343,28 +345,6 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  Future<void> _addCustomTag() async {
-    final raw = _tagCtrl.text.trim();
-    final tag = raw.replaceAll(' ', '_').toLowerCase();
-    if (tag.isEmpty) return;
-    if (_customTags.contains(tag)) {
-      showAnimatedSnackBar(context, "Tag already exists.", isError: true);
-      _tagCtrl.clear();
-      return;
-    }
-    final uid = _uid;
-    if (uid == null) return;
-    try {
-      await TagService().addCustomTag(uid, tag);
-      setState(() {
-        _customTags = List.from(_customTags)..add(tag);
-        _tagCtrl.clear();
-      });
-    } catch (_) {
-      if (mounted) showAnimatedSnackBar(context, "Failed to add tag.", isError: true);
-    }
-  }
-
   Future<void> _deleteTag(String tag) async {
     final uid = _uid;
     if (uid == null) return;
@@ -402,7 +382,11 @@ class _AccountScreenState extends State<AccountScreen> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
               children: [
-                _profileSection(),
+                _avatarSection(),
+                const SizedBox(height: 20),
+                _sectionLabel("Name"),
+                const SizedBox(height: 10),
+                _nameSection(),
                 const SizedBox(height: 28),
                 _sectionLabel("Custom Moods"),
                 const SizedBox(height: 10),
@@ -416,61 +400,103 @@ class _AccountScreenState extends State<AccountScreen> {
     );
   }
 
-  Widget _profileSection() {
+  Widget _avatarSection() {
     final nameText = _nameCtrl.text.trim();
+    return Center(
+      child: AvatarCircle(id: _uid ?? nameText, name: nameText, size: 80),
+    );
+  }
 
+  Widget _nameSection() {
+    final nameText = _nameCtrl.text.trim();
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
-        children: [
-          AvatarCircle(id: _uid ?? nameText, name: nameText, size: 80),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _nameCtrl,
-                  style: const TextStyle(fontSize: 14, color: AppColors.text),
-                  decoration: appFieldDecoration(
-                    labelText: "Display name",
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              SizedBox(
-                height: 42,
-                child: ElevatedButton(
-                  onPressed: _savingName ? null : _saveName,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: _savingName
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2),
-                        )
-                      : const Text("Save",
-                          style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
+      child: _editingName ? _nameEditRow() : _nameDisplayRow(nameText),
+    );
+  }
+
+  Widget _nameDisplayRow(String nameText) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 40,
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              nameText.isEmpty ? "No name" : nameText,
+              style: const TextStyle(fontSize: 14, color: AppColors.text),
+            ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          height: 40,
+          child: ElevatedButton(
+            onPressed: () => setState(() => _editingName = true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Icon(Icons.edit_rounded, size: 16, color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _nameEditRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _nameCtrl,
+            autofocus: true,
+            style: const TextStyle(fontSize: 14, color: AppColors.text),
+            decoration: appFieldDecoration(
+              hintText: "Display name",
+              hintFontSize: 13,
+              counterText: '',
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          height: 40,
+          child: ElevatedButton(
+            onPressed: _savingName ? null : _saveName,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: _savingName
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2),
+                  )
+                : const Text("Save",
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -568,60 +594,33 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Widget _tagsSection() {
+    if (_customTags.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(
+          child: Text(
+            "No tags yet.\nAdd one while logging an entry.",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.grey, fontSize: 13, height: 1.5),
+          ),
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_customTags.isNotEmpty) ...[
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _buildTagChips(),
-            ),
-            const SizedBox(height: 14),
-            const Divider(height: 1, color: AppColors.border),
-            const SizedBox(height: 14),
-          ],
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _tagCtrl,
-                  style: const TextStyle(fontSize: 14, color: AppColors.text),
-                  onSubmitted: (_) => _addCustomTag(),
-                  decoration: appFieldDecoration(
-                    hintText: "New tag...",
-                    hintFontSize: 13,
-                    counterText: '',
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              SizedBox(
-                height: 40,
-                child: ElevatedButton(
-                  onPressed: _addCustomTag,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text("Add",
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
-          ),
-        ],
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _buildTagChips(),
       ),
     );
   }

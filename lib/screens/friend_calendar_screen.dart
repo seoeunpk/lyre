@@ -132,6 +132,9 @@ class _FriendCalendarScreenState extends State<FriendCalendarScreen> {
 
   String _key(DateTime d) => "${d.year}-${d.month}-${d.day}";
 
+  bool get _isCurrentMonth =>
+      month.year == today.year && month.month == today.month;
+
   void prevMonth() => setState(() => month = DateTime(month.year, month.month - 1));
   void nextMonth() => setState(() => month = DateTime(month.year, month.month + 1));
 
@@ -156,8 +159,9 @@ class _FriendCalendarScreenState extends State<FriendCalendarScreen> {
             ),
           ),
           IconButton(
-            onPressed: nextMonth,
-            icon: const Icon(Icons.chevron_right_rounded, color: AppColors.grey),
+            onPressed: _isCurrentMonth ? null : nextMonth,
+            icon: Icon(Icons.chevron_right_rounded,
+                color: _isCurrentMonth ? Colors.white : AppColors.grey),
           ),
         ],
       ),
@@ -220,7 +224,7 @@ class _FriendCalendarScreenState extends State<FriendCalendarScreen> {
     final moodColor = moodData?.color;
     final albumArt = prefs.shareSongs ? entry?.song?.albumArtUrl : null;
     final hasArt = albumArt != null && albumArt.isNotEmpty;
-    final glowColor = moodColor ?? (isToday ? AppColors.primary : null);
+    final glowColor = moodColor;
     final hasEntry = entry != null;
 
     Widget? cellContent;
@@ -267,7 +271,7 @@ class _FriendCalendarScreenState extends State<FriendCalendarScreen> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
-              color: isToday ? Colors.black : AppColors.grey,
+              color: AppColors.grey,
             ),
           ),
         ],

@@ -64,9 +64,6 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
   }
 
-  /// Single subscription driving both the social-tab pending-request badge
-  /// and the default-sharing check below, instead of two separate listeners
-  /// on the same friendships query.
   void _watchFriendships() {
     final uid = _uid;
     if (uid == null) return;
@@ -75,9 +72,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final accepted = friendships.where((f) => f.isAccepted).toList();
       final acceptedIds = accepted.map((f) => f.id).toSet();
-      // Skip the Firestore round-trip in ensureDefaultSharing when this tick
-      // didn't introduce any newly-accepted friendship (e.g. it fired because
-      // of an unrelated pending request).
       if (acceptedIds.difference(_autoSharedFriendshipIds).isEmpty) return;
       _autoSharedFriendshipIds = acceptedIds;
       SharingService().ensureDefaultSharing(uid, accepted).catchError((_) {});
