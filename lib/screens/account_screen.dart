@@ -5,6 +5,8 @@ import '../services/mood_service.dart';
 import '../services/tag_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/animated_snackbar.dart';
+import '../utils/field_decoration.dart';
+import '../widgets/avatar_circle.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -15,13 +17,13 @@ class AccountScreen extends StatefulWidget {
 
 class _AccountScreenState extends State<AccountScreen> {
   final _nameCtrl = TextEditingController();
-  final _tagCtrl = TextEditingController();
 
   List<Mood> _customMoods = [];
   List<String> _customTags = [];
   bool _loading = true;
   bool _savingName = false;
   bool _profileChanged = false;
+  bool _editingName = false;
 
   String? get _uid => AuthService().currentUser?.uid;
 
@@ -34,7 +36,6 @@ class _AccountScreenState extends State<AccountScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _tagCtrl.dispose();
     super.dispose();
   }
 
@@ -73,7 +74,10 @@ class _AccountScreenState extends State<AccountScreen> {
       await AuthService().currentUser?.updateDisplayName(name);
       if (mounted) {
         showAnimatedSnackBar(context, "Name updated!");
-        setState(() => _profileChanged = true);
+        setState(() {
+          _profileChanged = true;
+          _editingName = false;
+        });
       }
     } catch (_) {
       if (mounted) showAnimatedSnackBar(context, "Failed to update name.", isError: true);
@@ -138,28 +142,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       child: TextField(
                         controller: labelCtrl,
                         style: const TextStyle(fontSize: 14, color: AppColors.text),
-                        decoration: InputDecoration(
-                          hintText: "Name",
-                          hintStyle: const TextStyle(color: AppColors.grey),
-                          filled: true,
-                          fillColor: AppColors.background,
-                          isDense: true,
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.border),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: AppColors.primary, width: 2),
-                          ),
-                        ),
+                        decoration: appFieldDecoration(hintText: "Name"),
                       ),
                     ),
                   ],
@@ -352,35 +335,13 @@ class _AccountScreenState extends State<AccountScreen> {
     try {
       await MoodService().deleteCustomMood(uid, mood);
       final remaining = <Mood>[];
-    for (final m in Moods.custom) {
-      if (m.label != mood.label) remaining.add(m);
-    }
-    Moods.custom = remaining;
+      for (final m in Moods.custom) {
+        if (m.label != mood.label) remaining.add(m);
+      }
+      Moods.custom = remaining;
       if (mounted) setState(() => _customMoods = List.from(Moods.custom));
     } catch (_) {
       if (mounted) showAnimatedSnackBar(context, "Failed to delete mood.", isError: true);
-    }
-  }
-
-  Future<void> _addCustomTag() async {
-    final raw = _tagCtrl.text.trim();
-    final tag = raw.replaceAll(' ', '_').toLowerCase();
-    if (tag.isEmpty) return;
-    if (_customTags.contains(tag)) {
-      showAnimatedSnackBar(context, "Tag already exists.", isError: true);
-      _tagCtrl.clear();
-      return;
-    }
-    final uid = _uid;
-    if (uid == null) return;
-    try {
-      await TagService().addCustomTag(uid, tag);
-      setState(() {
-        _customTags = List.from(_customTags)..add(tag);
-        _tagCtrl.clear();
-      });
-    } catch (_) {
-      if (mounted) showAnimatedSnackBar(context, "Failed to add tag.", isError: true);
     }
   }
 
@@ -421,7 +382,11 @@ class _AccountScreenState extends State<AccountScreen> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
               children: [
-                _profileSection(),
+                _avatarSection(),
+                const SizedBox(height: 20),
+                _sectionLabel("Name"),
+                const SizedBox(height: 10),
+                _nameSection(),
                 const SizedBox(height: 28),
                 _sectionLabel("Custom Moods"),
                 const SizedBox(height: 10),
@@ -435,106 +400,103 @@ class _AccountScreenState extends State<AccountScreen> {
     );
   }
 
-  Widget _profileSection() {
+  Widget _avatarSection() {
     final nameText = _nameCtrl.text.trim();
-    String initials = '?';
-    if (nameText.isNotEmpty) {
-      String letters = '';
-      for (final word in nameText.split(' ')) {
-        if (word.isNotEmpty && letters.length < 2) {
-          letters += word[0];
-        }
-      }
-      initials = letters.toUpperCase();
-    }
+    return Center(
+      child: AvatarCircle(id: _uid ?? nameText, name: nameText, size: 80),
+    );
+  }
 
+  Widget _nameSection() {
+    final nameText = _nameCtrl.text.trim();
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: const BoxDecoration(
-              color: AppColors.lightGrey,
-              shape: BoxShape.circle,
+      child: _editingName ? _nameEditRow() : _nameDisplayRow(nameText),
+    );
+  }
+
+  Widget _nameDisplayRow(String nameText) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 40,
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Center(
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.grey,
-                ),
-              ),
+            child: Text(
+              nameText.isEmpty ? "No name" : nameText,
+              style: const TextStyle(fontSize: 14, color: AppColors.text),
             ),
           ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _nameCtrl,
-                  style: const TextStyle(fontSize: 14, color: AppColors.text),
-                  decoration: InputDecoration(
-                    labelText: "Display name",
-                    labelStyle:
-                        const TextStyle(color: AppColors.grey, fontSize: 13),
-                    filled: true,
-                    fillColor: AppColors.background,
-                    isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: AppColors.primary, width: 2),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              SizedBox(
-                height: 42,
-                child: ElevatedButton(
-                  onPressed: _savingName ? null : _saveName,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: _savingName
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2),
-                        )
-                      : const Text("Save",
-                          style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          height: 40,
+          child: ElevatedButton(
+            onPressed: () => setState(() => _editingName = true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Icon(Icons.edit_rounded, size: 16, color: Colors.white),
           ),
-        ],
-      ),
+        ),
+      ],
+    );
+  }
+
+  Widget _nameEditRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _nameCtrl,
+            autofocus: true,
+            style: const TextStyle(fontSize: 14, color: AppColors.text),
+            decoration: appFieldDecoration(
+              hintText: "Display name",
+              hintFontSize: 13,
+              counterText: '',
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          height: 40,
+          child: ElevatedButton(
+            onPressed: _savingName ? null : _saveName,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: _savingName
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2),
+                  )
+                : const Text("Save",
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -632,79 +594,33 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Widget _tagsSection() {
+    if (_customTags.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(
+          child: Text(
+            "No tags yet.\nAdd one while logging an entry.",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.grey, fontSize: 13, height: 1.5),
+          ),
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_customTags.isNotEmpty) ...[
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _buildTagChips(),
-            ),
-            const SizedBox(height: 14),
-            const Divider(height: 1, color: AppColors.border),
-            const SizedBox(height: 14),
-          ],
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _tagCtrl,
-                  style: const TextStyle(fontSize: 14, color: AppColors.text),
-                  onSubmitted: (_) => _addCustomTag(),
-                  decoration: InputDecoration(
-                    hintText: "New tag...",
-                    hintStyle:
-                        const TextStyle(color: AppColors.grey, fontSize: 13),
-                    filled: true,
-                    fillColor: AppColors.background,
-                    isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    counterText: '',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide:
-                          const BorderSide(color: AppColors.primary, width: 2),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              SizedBox(
-                height: 40,
-                child: ElevatedButton(
-                  onPressed: _addCustomTag,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text("Add",
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
-          ),
-        ],
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _buildTagChips(),
       ),
     );
   }

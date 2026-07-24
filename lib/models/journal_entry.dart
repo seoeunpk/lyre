@@ -54,13 +54,21 @@ class JournalEntry {
   String get docId =>
       "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 
+  JournalEntry copyWith({String? note}) => JournalEntry(
+        date: date,
+        mood: mood,
+        note: note ?? this.note,
+        tags: tags,
+        song: song,
+      );
+
   factory JournalEntry.fromMap(Map<String, dynamic> map) {
     final ts = map['date'];
     final songMap = map['song'];
     return JournalEntry(
       date: ts is Timestamp ? ts.toDate() : DateTime.now(),
       mood: map['mood'] ?? '',
-      note: map['note'] ?? '',
+      note: '',
       tags: List<String>.from(map['tags'] ?? []),
       song: songMap is Map<String, dynamic>
           ? EntrySong.fromMap(songMap)
@@ -71,7 +79,6 @@ class JournalEntry {
   Map<String, dynamic> toMap() => {
         'date': Timestamp.fromDate(date),
         'mood': mood,
-        'note': note,
         'tags': tags,
         'song': song?.toMap(),
         'updatedAt': FieldValue.serverTimestamp(),

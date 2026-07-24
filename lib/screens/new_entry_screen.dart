@@ -9,6 +9,7 @@ import '../services/tag_service.dart';
 import '../services/spotify_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/animated_snackbar.dart';
+import '../utils/field_decoration.dart';
 
 class NewEntryScreen extends StatefulWidget {
   final DateTime date;
@@ -199,25 +200,7 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                       child: TextField(
                         controller: labelCtrl,
                         style: const TextStyle(fontSize: 14, color: AppColors.text),
-                        decoration: InputDecoration(
-                          hintText: "Name",
-                          hintStyle: const TextStyle(color: AppColors.grey),
-                          filled: true,
-                          fillColor: AppColors.background,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.border),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        ),
+                        decoration: appFieldDecoration(hintText: "Name"),
                       ),
                     ),
                   ],
@@ -406,26 +389,11 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
           autofocus: true,
           maxLength: 20,
           style: const TextStyle(color: AppColors.text, fontSize: 14),
-          decoration: InputDecoration(
+          decoration: appFieldDecoration(
             hintText: "e.g. school, travel, late_night...",
-            hintStyle: const TextStyle(color: AppColors.grey, fontSize: 13),
-            filled: true,
-            fillColor: AppColors.background,
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            hintFontSize: 13,
             counterText: '',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.pink, width: 2),
-            ),
+            focusColor: AppColors.pink,
           ),
           onSubmitted: (v) => Navigator.pop(context, v.trim()),
         ),
@@ -729,25 +697,13 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
                         onChanged: onSpotifySearchChanged,
                         autofocus: true,
                         style: const TextStyle(fontSize: 14, color: AppColors.text),
-                        decoration: InputDecoration(
+                        decoration: appFieldDecoration(
                           hintText: "Search for a song or artist...",
-                          hintStyle: const TextStyle(color: AppColors.grey, fontSize: 13),
-                          filled: true,
-                          fillColor: AppColors.background,
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(color: AppColors.border),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(color: AppColors.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(color: AppColors.pink, width: 2),
-                          ),
+                          hintFontSize: 13,
+                          radius: 14,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          focusColor: AppColors.pink,
                         ),
                       ),
                     ),
@@ -841,24 +797,12 @@ class _NewEntryScreenState extends State<NewEntryScreen> {
               controller: noteController,
               maxLines: 6,
               style: const TextStyle(fontSize: 14, height: 1.6, color: AppColors.text),
-              decoration: InputDecoration(
+              decoration: appFieldDecoration(
                 hintText: "Write here...",
-                hintStyle: const TextStyle(color: AppColors.grey, fontSize: 14),
-                filled: true,
-                fillColor: AppColors.background,
+                hintFontSize: 14,
+                radius: 14,
                 contentPadding: const EdgeInsets.all(14),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.pink, width: 2),
-                ),
+                focusColor: AppColors.pink,
               ),
             ),
           ],

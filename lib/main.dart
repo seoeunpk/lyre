@@ -38,6 +38,8 @@ class MyApp extends StatelessWidget {
           backgroundColor: AppColors.background,
           foregroundColor: AppColors.text,
           elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
           centerTitle: false,
         ),
         colorScheme: ColorScheme.fromSeed(

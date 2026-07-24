@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/animated_snackbar.dart';
+import '../widgets/avatar_circle.dart';
 import 'account_screen.dart';
 import 'login_screen.dart';
 
@@ -30,18 +31,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  String get _initials {
-    if (_name.isEmpty || _name == 'No name') return '?';
-    final words = _name.trim().split(' ');
-    String result = '';
-    for (final word in words) {
-      if (word.isNotEmpty && result.length < 2) {
-        result += word[0];
-      }
-    }
-    return result.toUpperCase();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,23 +52,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           children: [
             const SizedBox(height: 32),
-            Container(
-              width: 72,
-              height: 72,
-              decoration: const BoxDecoration(
-                color: AppColors.lightGrey,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  _initials,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.grey,
-                  ),
-                ),
-              ),
+            AvatarCircle(
+              id: AuthService().currentUser?.uid ?? _name,
+              name: _name == 'No name' ? '' : _name,
+              size: 72,
             ),
             const SizedBox(height: 16),
             Text(
