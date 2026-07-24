@@ -1088,16 +1088,28 @@ class TagChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.pink,
+          color: selected ? AppColors.darkPink : AppColors.pink,
           borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: AppColors.text,
-            fontWeight: FontWeight.w400,
+          border: Border.all(
+            color: selected ? AppColors.darkPink : AppColors.pink,
           ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (selected) ...[
+              const Icon(Icons.check_rounded, size: 15, color: AppColors.text),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.text,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+              ),
+            ),
+          ],
         ),
       ),
     );
