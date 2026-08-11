@@ -29,6 +29,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
   String? codeError;
   bool sendingRequest = false;
   final Map<String, Future<UserProfile?>> _userCache = {};
+  final Map<String, String> _lastStatus = {};
 
   String? get _uid => AuthService().currentUser?.uid;
 
@@ -79,6 +80,46 @@ class _ConnectScreenState extends State<ConnectScreen> {
 
   Future<UserProfile?> _userFor(String uid) {
     return _userCache.putIfAbsent(uid, () => _friends.getUser(uid));
+  }
+
+  void _notifyStatusChanges(List<Friendship> all, String uid) {
+    for (final f in all) {
+      if (f.requestedBy != uid) continue;
+      final prev = _lastStatus[f.id];
+      if (prev != 'pending') continue;
+      if (f.status != 'accepted' && f.status != 'declined') continue;
+      final message = f.status == 'accepted'
+          ? "Your friend request was accepted!"
+          : "Your friend request was declined.";
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showAnimatedSnackBar(context, message, isError: f.status == 'declined');
+      });
+    }
+    _lastStatus
+      ..clear()
+      ..addEntries(all.map((f) => MapEntry(f.id, f.status)));
+  }
+
+  Future<void> _retryRequest(String id, String uid) async {
+    try {
+      await _friends.retryRequest(id, uid);
+      if (!mounted) return;
+      showAnimatedSnackBar(context, "Friend request sent!");
+    } catch (_) {
+      if (!mounted) return;
+      showAnimatedSnackBar(context, "Couldn't send request. Check your connection.",
+          isError: true);
+    }
+  }
+
+  Future<void> _dismissRequest(String id) async {
+    try {
+      await _friends.dismissRequest(id);
+    } catch (_) {
+      if (!mounted) return;
+      showAnimatedSnackBar(context, "Couldn't remove request. Check your connection.",
+          isError: true);
+    }
   }
 
   Future<void> _sendRequest([StateSetter? setLocal]) async {
@@ -194,12 +235,14 @@ class _ConnectScreenState extends State<ConnectScreen> {
                           CircularProgressIndicator(color: AppColors.primary));
                 }
                 final all = snapshot.data ?? const <Friendship>[];
+                _notifyStatusChanges(all, uid);
                 final accepted = all.where((f) => f.isAccepted).toList();
                 final incoming = all
                     .where((f) => f.isPending && f.requestedBy != uid)
                     .toList();
                 final outgoing = all
-                    .where((f) => f.isPending && f.requestedBy == uid)
+                    .where((f) =>
+                        (f.isPending || f.isDeclined) && f.requestedBy == uid)
                     .toList();
 
                 return ListView(
@@ -326,8 +369,28 @@ class _ConnectScreenState extends State<ConnectScreen> {
       uid,
       f,
       fallbackName: "Someone",
-      trailing: (otherUid, name) => const Text("Requested",
-          style: TextStyle(color: AppColors.grey, fontSize: 12)),
+      trailing: (otherUid, name) => f.isDeclined
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("Declined",
+                    style: TextStyle(color: AppColors.red, fontSize: 12)),
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded,
+                      color: AppColors.grey, size: 18),
+                  tooltip: "Send again",
+                  onPressed: () => _retryRequest(f.id, uid),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      color: AppColors.grey, size: 18),
+                  tooltip: "Remove",
+                  onPressed: () => _dismissRequest(f.id),
+                ),
+              ],
+            )
+          : const Text("Requested",
+              style: TextStyle(color: AppColors.grey, fontSize: 12)),
     );
   }
 

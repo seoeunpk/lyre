@@ -69,9 +69,15 @@ class FriendService {
     final existing = await ref.get();
     if (existing.exists) {
       final status = existing.data()?['status'];
-      return status == 'accepted'
-          ? "You're already friends."
-          : "A request is already pending.";
+      if (status == 'accepted') return "You're already friends.";
+      if (status == 'pending') return "A request is already pending.";
+      await ref.update({
+        'status': 'pending',
+        'requestedBy': uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'respondedAt': FieldValue.delete(),
+      });
+      return null;
     }
 
     await ref.set({
@@ -85,11 +91,24 @@ class FriendService {
 
   Future<void> respondToRequest(String id, bool accept) async {
     final ref = _db.collection('friendships').doc(id);
-    if (accept) {
-      await ref.update({'status': 'accepted'});
-    } else {
-      await ref.delete();
-    }
+    await ref.update({
+      'status': accept ? 'accepted' : 'declined',
+      'respondedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> retryRequest(String id, String uid) async {
+    final ref = _db.collection('friendships').doc(id);
+    await ref.update({
+      'status': 'pending',
+      'requestedBy': uid,
+      'createdAt': FieldValue.serverTimestamp(),
+      'respondedAt': FieldValue.delete(),
+    });
+  }
+
+  Future<void> dismissRequest(String id) async {
+    await _db.collection('friendships').doc(id).delete();
   }
 
   Stream<List<Friendship>> friendshipsFor(String uid) {
