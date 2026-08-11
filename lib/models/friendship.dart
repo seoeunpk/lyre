@@ -6,6 +6,7 @@ class Friendship {
   final String requestedBy;
   final String status;
   final DateTime? createdAt;
+  final DateTime? respondedAt;
 
   Friendship({
     required this.id,
@@ -13,22 +14,26 @@ class Friendship {
     required this.requestedBy,
     required this.status,
     this.createdAt,
+    this.respondedAt,
   });
 
   bool get isAccepted => status == 'accepted';
   bool get isPending => status == 'pending';
+  bool get isDeclined => status == 'declined';
 
   String otherUid(String selfUid) =>
       users.firstWhere((u) => u != selfUid, orElse: () => '');
 
   factory Friendship.fromMap(String id, Map<String, dynamic> map) {
     final ts = map['createdAt'];
+    final respondedTs = map['respondedAt'];
     return Friendship(
       id: id,
       users: List<String>.from(map['users'] ?? []),
       requestedBy: map['requestedBy'] as String? ?? '',
       status: map['status'] as String? ?? 'pending',
       createdAt: ts is Timestamp ? ts.toDate() : null,
+      respondedAt: respondedTs is Timestamp ? respondedTs.toDate() : null,
     );
   }
 }

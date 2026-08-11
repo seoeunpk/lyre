@@ -58,13 +58,22 @@ service cloud.firestore {
         request.resource.data.requestedBy == request.auth.uid &&
         request.resource.data.status == 'pending';
 
-      // only the non-requesting participant can accept
+      // only the non-requesting participant can accept or decline
       allow update: if request.auth != null &&
         request.auth.uid in resource.data.users &&
         resource.data.requestedBy != request.auth.uid &&
         resource.data.status == 'pending' &&
-        request.resource.data.status == 'accepted' &&
+        (request.resource.data.status == 'accepted' ||
+          request.resource.data.status == 'declined') &&
         request.resource.data.requestedBy == resource.data.requestedBy &&
+        request.resource.data.users == resource.data.users;
+
+      // either participant can retry after a decline
+      allow update: if request.auth != null &&
+        request.auth.uid in resource.data.users &&
+        resource.data.status == 'declined' &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.requestedBy == request.auth.uid &&
         request.resource.data.users == resource.data.users;
 
       allow delete: if request.auth != null && request.auth.uid in resource.data.users;
